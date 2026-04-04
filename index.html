@@ -72,8 +72,17 @@ h3 { color: var(--gold-dim); font-size: 0.95em; margin: 12px 0 4px; }
 /* Character Status Bar */
 .char-status-wrapper {
   display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
-  margin: 12px 0;
+  margin: 12px 0; align-items: stretch;
 }
+.weapon-hits-panel {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 14px; font-size: 0.85em;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.weapon-hits-panel h3 { color: var(--cat-hits); font-size: 0.85em; margin: 0 0 4px; }
+.wh-row { display: flex; justify-content: space-between; gap: 12px; color: var(--text-dim); }
+.wh-row .wh-val { color: var(--text); font-weight: bold; }
+.wh-row .wh-val.wh-zero { color: var(--text-dim); font-weight: normal; }
 .buff-panel {
   background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
   padding: 10px 14px; display: flex; flex-direction: column; gap: 6px;
@@ -1282,6 +1291,13 @@ function renderSummary() {
     <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}<td class="empty"></td>${rv('Poison Resist', rPois)}</tr>
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Energy Resist', rEnrg)}</tr>
   </table>
+  <div class="weapon-hits-panel">
+    <h3>Weapon Hits</h3>`;
+  ATTRIBUTES.filter(a => a.cat === "Weapon Hits").forEach(attr => {
+    const val = getSlotTotal(WEAPON_SLOT, attr.name);
+    html += `<div class="wh-row"><span>${attr.name}</span><span class="wh-val ${val === 0 ? 'wh-zero' : ''}">${val}/${attr.max}</span></div>`;
+  });
+  html += `</div>
   <div class="buff-panel">
     <h3>Active Buffs / Effects</h3>
     <div class="deed-item">
@@ -1336,6 +1352,7 @@ function renderSummary() {
 
   let lastCat = '';
   ATTRIBUTES.forEach(attr => {
+    if (attr.cat === "Weapon Hits") return;
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
       html += `<tr><td class="cat-header" colspan="${colCount}">${attr.cat}</td></tr>`;
