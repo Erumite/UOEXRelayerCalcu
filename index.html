@@ -387,14 +387,29 @@ const PRESET_WEAPONS = {
 
 const NOTABLE_ITEMS = {
   "Spirit of Totem": {
+    nativeSlot:"Head",
     stats:{"Bonus Strength":20,"Reflect Physical Damage":15,"Hit Chance Increase":15,
            "Resist Physical":20,"Resist Fire":3,"Resist Cold":8,"Resist Poison":4,"Resist Energy":4},
-    note:"Fixed stats, no leveling."
+    note:"Fixed stats, no leveling. Native slot: Head."
   },
   "Hide of the Werewolf King": {
+    nativeSlot:"Head",
     stats:{"Bonus Hits":20,"Regen Hits":5,"Bonus Stamina":15,"Bonus Strength":10,
            "Resist Physical":22,"Resist Fire":-10,"Resist Cold":20},
-    note:"Fixed stats, no leveling. Night Sight included."
+    note:"Fixed stats, no leveling. Night Sight included. Native slot: Head."
+  },
+  "Black Belt": {
+    nativeSlot:"Belt",
+    stats:{"Defense Chance Increase":15,"Hit Chance Increase":15,"Bonus Hits":20,
+           "Luck":250,"Bonus Mana":20,"Reflect Physical Damage":10,"Bonus Stamina":20,"Bonus Strength":5},
+    note:"Fixed stats, no leveling. Native slot: Belt."
+  },
+  "Cloak of Mist": {
+    nativeSlot:"Cloak",
+    stats:{"Damage Increase":15,"Bonus Dex":8,"Bonus Int":8,"Lower Reagent Cost":15,
+           "Regen Stamina":1,"Spell Damage Increase":20,"Bonus Strength":12,
+           "Resist Physical":10,"Resist Fire":10,"Resist Cold":10,"Resist Poison":10,"Resist Energy":10},
+    note:"Fixed stats, no leveling. Native slot: Cloak."
   },
 };
 
@@ -886,9 +901,22 @@ function getShoppingItems() {
   const items = [];
   state.slots.forEach((s, si) => {
     const info = getWeaponInfo(si);
-    if (!info.type || info.isNotable) return;
+    if (s.weaponChoice === "none") return;
     const slotName = SLOTS[si];
     const weaponLabel = s.weaponChoice === 'custom' ? (s.customName || 'Custom') : s.weaponChoice;
+
+    // Relayer Deed — always needed for weapons; for notable items only if not in native slot
+    if (info.isNotable) {
+      const notable = NOTABLE_ITEMS[s.weaponChoice];
+      if (notable && notable.nativeSlot !== slotName) {
+        items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
+      }
+    } else {
+      items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
+    }
+
+    // Remaining deeds only apply to levelable weapons
+    if (info.isNotable) return;
 
     // Leveling deeds
     for (let d = 0; d < s.levelingDeeds; d++) {
