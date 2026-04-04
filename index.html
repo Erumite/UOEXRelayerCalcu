@@ -643,6 +643,15 @@ function renderSlot() {
       html += `<div class="stat-line">${k}: <span>${v >= 0 ? '+' : ''}${v}${k.startsWith('Resist') || k.includes('Increase') || k.includes('Damage') || k.includes('Reflect') ? '%' : ''}</span></div>`;
     });
     html += `</div>`;
+
+    html += `<div class="deeds-section" style="margin-top:12px">
+      <div class="deed-item">
+        <label>Luck Deeds (+100):</label>
+        <input type="number" class="narrow" min="0" max="${getMaxLuckDeeds(i)}" value="${s.luckDeeds}"
+          onchange="updateDeed(${i},'luckDeeds',this.value)">
+        <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}, total ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
+      </div>
+    </div>`;
   }
 
   // Attribute allocation table (for levelable weapons)
@@ -923,8 +932,14 @@ function getShoppingItems() {
       items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
     }
 
-    // Remaining deeds only apply to levelable weapons
-    if (info.isNotable) return;
+    // Luck deeds apply to notable items too
+    if (info.isNotable) {
+      for (let d = 0; d < s.luckDeeds; d++) {
+        items.push({ key: `${si}-luck-${d}`, slot: slotName, weapon: weaponLabel,
+          label: `Luck Deed (+100) #${d + 1}`, ed: 100 });
+      }
+      return;
+    }
 
     // Leveling deeds
     for (let d = 0; d < s.levelingDeeds; d++) {
