@@ -635,7 +635,7 @@ let state = {
   purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
   editingSavedItem: false,
   baseStats: { str: 0, dex: 0, int: 0 },
-  buffs: { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, greaterStrPotion: false, strengthSpell: false },
+  buffs: { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false },
 };
 
 function createEmptySlot() {
@@ -1235,6 +1235,7 @@ function renderSummary() {
   // Apply stat buffs
   if (state.buffs.angelicFaith) { totalStr += 20; totalDex += 20; totalInt += 20; }
   if (state.buffs.strengthSpell) { totalStr += 11; }
+  if (state.buffs.strengthPotion) { totalStr += Math.floor(10 * (1 + enhPot / 100)); }
   if (state.buffs.greaterStrPotion) { totalStr += Math.floor(20 * (1 + enhPot / 100)); }
   const blessStr = Math.floor(totalStr * 0.11);
   const blessDex = Math.floor(totalDex * 0.11);
@@ -1279,6 +1280,12 @@ function renderSummary() {
       <span class="unequip-hint" title="-9% Physical Resistance (with max Inscription; -15% without)">[?]</span>
     </div>
     <div class="deed-item">
+      <input type="checkbox" id="buff_bless" data-buff="bless" ${state.buffs.bless?'checked':''} ${bc}>
+      <label for="buff_bless">Bless</label>
+      <span class="unequip-hint" title="+11% to STR/DEX/INT (at 100 Eval Int). Currently: +${blessStr} STR, +${blessDex} DEX, +${blessInt} INT. Applied after other stat buffs.">[?]</span>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+    <div class="deed-item">
       <input type="checkbox" id="buff_vamp" data-buff="vampiricEmbrace" ${state.buffs.vampiricEmbrace?'checked':''} ${bc}>
       <label for="buff_vamp">Vampiric Embrace</label>
       <span class="unequip-hint" title="+15 Stamina Regen, +3 Mana Regen, -25% Fire Resist">[?]</span>
@@ -1288,10 +1295,11 @@ function renderSummary() {
       <label for="buff_angel">Angelic Faith</label>
       <span class="unequip-hint" title="+20 STR/DEX/INT (at 100 Spirit Speak). Also boosts Anatomy, Mace Fighting, and Healing.">[?]</span>
     </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
     <div class="deed-item">
-      <input type="checkbox" id="buff_bless" data-buff="bless" ${state.buffs.bless?'checked':''} ${bc}>
-      <label for="buff_bless">Bless</label>
-      <span class="unequip-hint" title="+11% to STR/DEX/INT (at 100 Eval Int). Currently: +${blessStr} STR, +${blessDex} DEX, +${blessInt} INT. Applied after other stat buffs.">[?]</span>
+      <input type="checkbox" id="buff_strpotm" data-buff="strengthPotion" ${state.buffs.strengthPotion?'checked':''} ${bc}>
+      <label for="buff_strpotm">Strength Potion</label>
+      <span class="unequip-hint" title="+10 STR, enhanced by Enhance Potions (current: ${enhPot}% = +${Math.floor(10*(1+enhPot/100))} STR)">[?]</span>
     </div>
     <div class="deed-item">
       <input type="checkbox" id="buff_strpot" data-buff="greaterStrPotion" ${state.buffs.greaterStrPotion?'checked':''} ${bc}>
@@ -1524,8 +1532,9 @@ function deleteSavedWeapon(name) {
 }
 
 const BUFF_EXCLUSIONS = {
-  strengthSpell: ['greaterStrPotion'],
-  greaterStrPotion: ['strengthSpell'],
+  strengthSpell: ['greaterStrPotion', 'strengthPotion'],
+  greaterStrPotion: ['strengthSpell', 'strengthPotion'],
+  strengthPotion: ['strengthSpell', 'greaterStrPotion'],
   vampiricEmbrace: ['angelicFaith'],
   angelicFaith: ['vampiricEmbrace'],
 };
@@ -1714,7 +1723,7 @@ function loadFromStorage() {
       state.savedWeapons = loaded.savedWeapons || [];
       state.savedClothing = loaded.savedClothing || [];
       state.baseStats = loaded.baseStats || { str: 0, dex: 0, int: 0 };
-      state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, greaterStrPotion: false, strengthSpell: false, ...(loaded.buffs || {}) };
+      state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false, ...(loaded.buffs || {}) };
       state.shoppingOpen = loaded.shoppingOpen || false;
       state.purchased = loaded.purchased || {};
       if (loaded.slots) {
