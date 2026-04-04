@@ -579,6 +579,7 @@ function createEmptySlot() {
     selfRepair: false,
     useBestSkill: false,
     removeMageWeapon: false,
+    mageArmor: false,
     useWeaponChangeDeed: false,
     unequipped: false,
     allocations: allocs,
@@ -805,22 +806,32 @@ function renderSlot() {
         <input type="checkbox" id="sc_${i}" ${s.spellChanneling?'checked':''}
           onchange="updateCheckDeed(${i},'spellChanneling',this.checked)">
         <label for="sc_${i}">Spell Channeling</label>
+        <span class="unequip-hint" title="Allows casting Magery spells without unequipping the weapon.">[?]</span>
       </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
           onchange="updateCheckDeed(${i},'selfRepair',this.checked)">
         <label for="sr_${i}">Self Repair 5</label>
+        ${!isWeaponSlot(i) ? `<span class="unequip-hint" title="Most weapon relayers on armor do not lose durability due to a long-standing bug. You usually don't need this deed on armor slots.">[?]</span>` : ''}
       </div>
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
           onchange="updateCheckDeed(${i},'useBestSkill',this.checked)">
         <label for="ubs_${i}">Use Best Skill</label>
+        <span class="unequip-hint" title="Causes the weapon to use your highest weapon skill for damage calculations. Most useful with the Angelic Faith transformation, which gives a bonus to Mace Fighting skill.">[?]</span>
       </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="rmw_${i}" ${s.removeMageWeapon?'checked':''}
           onchange="updateCheckDeed(${i},'removeMageWeapon',this.checked)">
         <label for="rmw_${i}">Remove Mage Weapon</label>
+        <span class="unequip-hint" title="Only needed if the weapon has the 'Mage Weapon' attribute, which lowers your Magery skill when equipped.">[?]</span>
       </div>
+      ${!isWeaponSlot(i) ? `<div class="deed-item">
+        <input type="checkbox" id="ma_${i}" ${s.mageArmor?'checked':''}
+          onchange="updateCheckDeed(${i},'mageArmor',this.checked)">
+        <label for="ma_${i}">Mage Armor</label>
+        <span class="unequip-hint" title="Relayered weapons onto armor are already considered medable. This is only useful on custom gear that is non-medable.">[?]</span>
+      </div>` : ''}
     </div>`;
   }
 
@@ -1353,6 +1364,10 @@ function getShoppingItems() {
     // Remove Mage Weapon
     if (s.removeMageWeapon) {
       items.push({ key: `${si}-removemage`, slot: slotName, weapon: weaponLabel, label: 'Remove Mage Weapon Deed', ed: 50 });
+    }
+    // Mage Armor
+    if (s.mageArmor) {
+      items.push({ key: `${si}-magearmor`, slot: slotName, weapon: weaponLabel, label: 'Mage Armor Deed', ed: 50 });
     }
     // Weapon Change Deed (if user opted to remove arti tag or upgrade crafted)
     if (s.useWeaponChangeDeed && (info.rawArtiTagged || info.rawType === 'crafted')) {
