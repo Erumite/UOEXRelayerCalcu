@@ -263,6 +263,21 @@ input[type="number"].narrow { width: 55px; }
 .shopping-item .ed-cost { color: var(--gold-dim); margin-left: auto; white-space: nowrap; }
 .shopping-empty { color: var(--text-dim); font-size: 0.9em; font-style: italic; }
 
+/* Saved item edit */
+.edit-toggle {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--gold-dim);
+  padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.82em;
+  margin-left: 8px;
+}
+.edit-toggle:hover { background: #1a4a7a; color: var(--gold); }
+.saved-edit-panel {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; margin-bottom: 16px;
+}
+.saved-edit-panel .edit-actions {
+  display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+
 /* Weapon slot tab */
 .slot-tab.weapon-slot {
   background: #2a1a1a; border-color: #6a3030;
@@ -270,6 +285,15 @@ input[type="number"].narrow { width: 55px; }
 .slot-tab.weapon-slot:hover { background: #3a2020; }
 .slot-tab.weapon-slot.active {
   background: #4a2020; border-color: var(--red); color: var(--red);
+}
+
+/* Shield slot tab */
+.slot-tab.shield-slot {
+  background: #1a1a2e; border-color: #3050a0;
+}
+.slot-tab.shield-slot:hover { background: #1a2a4a; }
+.slot-tab.shield-slot.active {
+  background: #1a3060; border-color: #5080d0; color: #5080d0;
 }
 
 /* Toast notification */
@@ -382,9 +406,9 @@ input[type="number"].narrow { width: 55px; }
 <script>
 // ===== DATA =====
 const SLOTS = [
-  "Weapon",
-  "Gloves","Skirt","Shirt","Earrings","Arms","Robe","Head",
-  "Ring","Boots","Belt","Bracelet","Neck","Cloak","Legs","Body"
+  "Weapon","Shield",
+  "Hands","Skirt","Shirt","Earrings","Arms","Robe","Head",
+  "Ring","Footwear","Belt","Bracelet","Neck","Back","Legs","Chest","Totem"
 ];
 
 const WEAPON_SLOT = 0; // index of the Weapon slot
@@ -500,11 +524,11 @@ const NOTABLE_ITEMS = {
     note:"Fixed stats, no leveling. Native slot: Belt."
   },
   "Cloak of Mist": {
-    nativeSlot:"Cloak", slotType:"armor",
+    nativeSlot:"Back", slotType:"armor",
     stats:{"Damage Increase":15,"Bonus Dex":8,"Bonus Int":8,"Lower Reagent Cost":15,
            "Regen Stamina":1,"Spell Damage Increase":20,"Bonus Strength":12,
            "Resist Physical":10,"Resist Fire":10,"Resist Cold":10,"Resist Poison":10,"Resist Energy":10},
-    note:"Fixed stats, no leveling. Native slot: Cloak."
+    note:"Fixed stats, no leveling. Native slot: Back."
   },
 };
 
@@ -516,9 +540,12 @@ let state = {
   activeSlot: 0,
   slots: SLOTS.map(() => createEmptySlot()),
   savedWeapons: [], // user-saved custom weapons
+  savedClothing: [], // user-saved custom clothing
   summaryOpen: false,
   shoppingOpen: false,
   purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
+  editingSavedItem: false,
+  baseStats: { str: 0, dex: 0, int: 0 },
 };
 
 function createEmptySlot() {
@@ -549,6 +576,11 @@ function getWeaponInfo(slot) {
 
   if (choice === "none") {
     result = { type: null, stats: {}, artiTagged: false, rawArtiTagged: false, isNotable: false, spPerLevel: 0 };
+  } else if (choice === "customClothing") {
+    result = { type: "notable", stats: {...s.customStats}, artiTagged: false, rawArtiTagged: false, isNotable: true, spPerLevel: 0 };
+  } else if (state.savedClothing.find(c => c.name === choice)) {
+    const sc = state.savedClothing.find(c => c.name === choice);
+    result = { type: "notable", stats: {...sc.stats}, artiTagged: false, rawArtiTagged: false, isNotable: true, spPerLevel: 0 };
   } else if (NOTABLE_ITEMS[choice]) {
     result = { type: "notable", stats: {...NOTABLE_ITEMS[choice].stats}, artiTagged: false, rawArtiTagged: false, isNotable: true, spPerLevel: 0 };
   } else if (PRESET_WEAPONS[choice]) {
@@ -590,7 +622,7 @@ function getTotalSP(slot) {
   const info = getWeaponInfo(slot);
   if (info.isNotable || !info.type) return 0;
   const deeds = state.slots[slot].levelingDeeds;
-  return (99 + Math.min(deeds, 9)) * info.spPerLevel;
+  return (99 + Math.min(deeds, 10)) * info.spPerLevel;
 }
 
 function getSpentSP(slot) {
@@ -625,7 +657,7 @@ function renderTabs() {
   container.innerHTML = SLOTS.map((name, i) => {
     const s = state.slots[i];
     const configured = s.weaponChoice !== "none";
-    const wepClass = isWeaponSlot(i) ? 'weapon-slot' : '';
+    const wepClass = isWeaponSlot(i) ? 'weapon-slot' : SLOTS[i] === 'Shield' ? 'shield-slot' : '';
     return `<button class="slot-tab ${wepClass} ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
       ${name}<span class="tab-dot ${configured ? 'configured' : ''}"></span>
     </button>`;
@@ -669,8 +701,14 @@ function renderSlot() {
             `<option value="${w.name}" ${s.weaponChoice===w.name?'selected':''}>${w.name} (${w.type})</option>`
           ).join('')}
         </optgroup>` : ''}
+        ${!isWeaponSlot(i) && state.savedClothing.length ? `<optgroup label="Saved Custom Clothing">
+          ${state.savedClothing.map(c =>
+            `<option value="${c.name}" ${s.weaponChoice===c.name?'selected':''}>${c.name}</option>`
+          ).join('')}
+        </optgroup>` : ''}
         <optgroup label="Custom">
           <option value="custom" ${s.weaponChoice==='custom'?'selected':''}>Custom Weapon...</option>
+          ${!isWeaponSlot(i) ? `<option value="customClothing" ${s.weaponChoice==='customClothing'?'selected':''}>Custom Clothing (fixed stats)...</option>` : ''}
         </optgroup>
       </select>
     </div>
@@ -699,6 +737,18 @@ function renderSlot() {
     html += renderCustomWeaponSection(i, s);
   }
 
+  // Custom clothing config
+  if (s.weaponChoice === 'customClothing') {
+    html += renderCustomClothingSection(i, s);
+  }
+
+  // Edit/delete for saved custom items
+  const isSavedWeapon = state.savedWeapons.some(w => w.name === s.weaponChoice);
+  const isSavedClothing = state.savedClothing.some(c => c.name === s.weaponChoice);
+  if (isSavedWeapon || isSavedClothing) {
+    html += renderSavedItemActions(i, s, isSavedWeapon);
+  }
+
   // SP Budget & Deeds (only for levelable weapons)
   if (info.type && !info.isNotable) {
     const pct = totalSP > 0 ? Math.min((spentSP / totalSP) * 100, 100) : 0;
@@ -713,9 +763,9 @@ function renderSlot() {
     html += `<div class="deeds-section">
       <div class="deed-item">
         <label>Leveling Deeds (+10 Levels):</label>
-        <input type="number" class="narrow" min="0" max="9" value="${s.levelingDeeds}"
+        <input type="number" class="narrow" min="0" max="10" value="${s.levelingDeeds}"
           onchange="updateDeed(${i},'levelingDeeds',this.value)">
-        <span style="font-size:0.75em;color:var(--text-dim)">(max 9, +${info.spPerLevel} SP each)</span>
+        <span style="font-size:0.75em;color:var(--text-dim)">(max 10, +${info.spPerLevel} SP each)</span>
       </div>
       <div class="deed-item">
         <label>Luck Deeds (+100):</label>
@@ -813,6 +863,132 @@ function renderCustomWeaponSection(i, s) {
   return html;
 }
 
+function renderCustomClothingSection(i, s) {
+  let html = `<div class="custom-weapon">
+    <h3>Custom Clothing Configuration</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+      <div class="config-group">
+        <label>Name</label>
+        <input type="text" value="${s.customName}" placeholder="Item name"
+          onchange="state.slots[${i}].customName=this.value; autoSave()">
+      </div>
+      <button class="btn btn-primary" onclick="saveCustomClothing(${i})" style="align-self:flex-end">Save as Notable Item</button>
+    </div>
+    <h3>Fixed Stats</h3>
+    <div class="custom-stats-grid">`;
+
+  const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
+  allStats.forEach(name => {
+    const val = s.customStats[name] || 0;
+    html += `<div class="custom-stat-row">
+      <label>${name}</label>
+      <input type="number" class="narrow" min="-100" max="200" value="${val}"
+        onchange="state.slots[${i}].customStats['${name}']=parseInt(this.value)||0; renderSlot(); renderSummary(); autoSave()">
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  return html;
+}
+
+function renderSavedItemActions(i, s, isWeapon) {
+  const name = s.weaponChoice;
+  const item = isWeapon
+    ? state.savedWeapons.find(w => w.name === name)
+    : state.savedClothing.find(c => c.name === name);
+  if (!item) return '';
+
+  let html = `<div style="margin-bottom:12px">
+    <button class="edit-toggle" onclick="state.editingSavedItem=!state.editingSavedItem; renderSlot()">
+      ${state.editingSavedItem ? 'Close Editor' : 'Edit / Delete'}
+    </button>
+  </div>`;
+
+  if (!state.editingSavedItem) return html;
+
+  html += `<div class="saved-edit-panel">
+    <h3>Editing: ${name}</h3>`;
+
+  if (isWeapon) {
+    html += `<div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0;align-items:center">
+      <div class="config-group">
+        <label>Type</label>
+        <select onchange="editSavedWeaponField('${name}','type',this.value)">
+          <option value="artifact" ${item.type==='artifact'?'selected':''}>Normal (5 SP/lvl)</option>
+          <option value="crafted" ${item.type==='crafted'?'selected':''}>Crafted (3 SP/lvl)</option>
+        </select>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="editArti_${i}" ${item.artiTagged?'checked':''}
+          onchange="editSavedWeaponField('${name}','artiTagged',this.checked)">
+        <label for="editArti_${i}">Arti-Tagged</label>
+      </div>
+    </div>`;
+  }
+
+  html += `<h3 style="margin-top:8px">Stats</h3><div class="custom-stats-grid">`;
+  const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
+  allStats.forEach(stat => {
+    const val = item.stats[stat] || 0;
+    html += `<div class="custom-stat-row">
+      <label>${stat}</label>
+      <input type="number" class="narrow" min="-100" max="200" value="${val}"
+        onchange="editSavedItemStat('${name}',${isWeapon},'${stat}',this.value)">
+    </div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="edit-actions">
+    <button class="btn btn-primary" onclick="state.editingSavedItem=false; renderSlot()">Done</button>
+    <button class="btn btn-danger" onclick="deleteSavedItem('${name}',${isWeapon})">Delete "${name}"</button>
+  </div></div>`;
+
+  return html;
+}
+
+function editSavedWeaponField(name, field, value) {
+  const item = state.savedWeapons.find(w => w.name === name);
+  if (!item) return;
+  item[field] = value;
+  renderSlot();
+  renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+}
+
+function editSavedItemStat(name, isWeapon, stat, value) {
+  const list = isWeapon ? state.savedWeapons : state.savedClothing;
+  const item = list.find(x => x.name === name);
+  if (!item) return;
+  item.stats[stat] = parseInt(value) || 0;
+  renderSlot();
+  renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+}
+
+function deleteSavedItem(name, isWeapon) {
+  if (!confirm(`Delete "${name}"? Any slots using it will be reset.`)) return;
+  if (isWeapon) {
+    state.savedWeapons = state.savedWeapons.filter(w => w.name !== name);
+  } else {
+    state.savedClothing = state.savedClothing.filter(c => c.name !== name);
+  }
+  state.slots.forEach(s => {
+    if (s.weaponChoice === name) {
+      s.weaponChoice = "none";
+      ATTRIBUTES.forEach(a => s.allocations[a.name] = 0);
+    }
+  });
+  state.editingSavedItem = false;
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+  showToast(`Deleted "${name}"`);
+}
+
 function renderAttrTable(i, s, info) {
   let html = `<table class="attr-table">
     <thead><tr>
@@ -872,8 +1048,30 @@ function renderAttrTable(i, s, info) {
   return html;
 }
 
+const BASE_STAT_MAP = {
+  "Bonus Strength": "str",
+  "Bonus Dex": "dex",
+  "Bonus Int": "int",
+};
+
 function renderSummary() {
-  let html = `<table class="summary-table"><thead><tr>
+  let html = `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+    <span style="color:var(--gold);font-weight:bold" title="Your character's stats with no gear equipped">Base Stats <span style="cursor:help;color:var(--text-dim);font-size:0.85em" title="Enter your character's Strength, Dexterity, and Intelligence when wearing no bonus gear.">[?]</span></span>
+    <label style="font-size:0.88em;color:var(--text-dim)">STR
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.str}"
+        onchange="state.baseStats.str=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+    <label style="font-size:0.88em;color:var(--text-dim)">DEX
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.dex}"
+        onchange="state.baseStats.dex=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+    <label style="font-size:0.88em;color:var(--text-dim)">INT
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.int}"
+        onchange="state.baseStats.int=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+  </div>`;
+
+  html += `<table class="summary-table"><thead><tr>
     <th class="attr-name">Attribute</th>
     <th>Gear Cap</th>`;
   SLOTS.forEach(name => { html += `<th>${name}</th>`; });
@@ -892,8 +1090,11 @@ function renderSummary() {
       total += val;
       html += `<td>${val || ''}</td>`;
     });
+    // Add base stat if applicable
+    const baseKey = BASE_STAT_MAP[attr.name];
+    if (baseKey) total += state.baseStats[baseKey];
     const capClass = attr.cap !== null ? (total > attr.cap ? 'over-cap' : total === attr.cap ? 'at-cap' : '') : '';
-    html += `<td class="${capClass}" style="font-weight:bold">${total}</td></tr>`;
+    html += `<td class="${capClass}" style="font-weight:bold">${total}${baseKey ? ` <span style="font-size:0.75em;color:var(--text-dim)">(${state.baseStats[baseKey]} base)</span>` : ''}</td></tr>`;
   });
 
   // Luck row
@@ -914,11 +1115,13 @@ function renderSummary() {
 // ===== ACTIONS =====
 function switchSlot(i) {
   state.activeSlot = i;
+  state.editingSavedItem = false;
   renderTabs();
   renderSlot();
 }
 
 function changeWeapon(slotIdx, value) {
+  state.editingSavedItem = false;
   const s = state.slots[slotIdx];
   s.weaponChoice = value;
   // Reset allocations when changing weapon
@@ -949,7 +1152,7 @@ function updateAlloc(slotIdx, attrName, value, maxAlloc) {
 
 function updateDeed(slotIdx, field, value) {
   let val = parseInt(value) || 0;
-  if (field === 'levelingDeeds') val = Math.max(0, Math.min(9, val));
+  if (field === 'levelingDeeds') val = Math.max(0, Math.min(10, val));
   if (field === 'luckDeeds') val = Math.max(0, Math.min(getMaxLuckDeeds(slotIdx), val));
   state.slots[slotIdx][field] = val;
   renderSlot();
@@ -992,6 +1195,30 @@ function saveCustomWeapon(slotIdx) {
   if (state.shoppingOpen) renderShoppingList();
   autoSave();
   showToast(`Saved "${name}" as custom weapon preset`);
+}
+
+function saveCustomClothing(slotIdx) {
+  const s = state.slots[slotIdx];
+  const name = s.customName.trim();
+  if (!name) { showToast("Enter an item name first"); return; }
+  if (PRESET_WEAPONS[name] || NOTABLE_ITEMS[name]) { showToast("Name conflicts with a preset"); return; }
+
+  const existing = state.savedClothing.findIndex(c => c.name === name);
+  const clothing = { name, stats: {...s.customStats} };
+
+  if (existing >= 0) {
+    state.savedClothing[existing] = clothing;
+  } else {
+    state.savedClothing.push(clothing);
+  }
+
+  s.weaponChoice = name;
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+  showToast(`Saved "${name}" as custom clothing preset`);
 }
 
 function deleteSavedWeapon(name) {
@@ -1180,6 +1407,8 @@ function loadFromStorage() {
       state.activeSlot = loaded.activeSlot || 0;
       state.summaryOpen = loaded.summaryOpen || false;
       state.savedWeapons = loaded.savedWeapons || [];
+      state.savedClothing = loaded.savedClothing || [];
+      state.baseStats = loaded.baseStats || { str: 0, dex: 0, int: 0 };
       state.shoppingOpen = loaded.shoppingOpen || false;
       state.purchased = loaded.purchased || {};
       if (loaded.slots) {
