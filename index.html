@@ -157,7 +157,8 @@ input[type="number"].narrow { width: 55px; }
   background: var(--bg3); color: var(--gold); text-align: center;
   position: sticky; top: 0; z-index: 1;
 }
-.attr-table th:first-child { text-align: left; min-width: 180px; }
+.attr-table td.alloc-cell, .attr-table th.alloc-header { width: 1%; white-space: nowrap; }
+.attr-table td.attr-name-cell, .attr-table th.attr-header { width: 1%; white-space: nowrap; text-align: left; }
 .attr-table .cat-row td {
   background: var(--bg); font-weight: bold; padding: 8px;
   border-bottom: 2px solid var(--border);
@@ -168,14 +169,20 @@ input[type="number"].narrow { width: 55px; }
 .attr-table .cat-row.cat-stats td { color: var(--cat-stats); }
 .attr-table .cat-row.cat-resists td { color: var(--cat-resists); }
 .attr-table td { text-align: center; }
-.attr-table td:first-child { text-align: left; }
-.attr-table td.sp-cost { color: var(--text-dim); }
-.attr-table td.base-val { color: var(--gold-dim); }
-.attr-table td.alloc-cell { padding: 2px 4px; }
-.attr-table td.total-cell { font-weight: bold; }
-.attr-table td.total-cell.at-max { color: var(--green); }
-.attr-table td.total-cell.over-max { color: var(--red); }
-.attr-table input[type="number"] { width: 58px; text-align: center; padding: 3px 4px; }
+.attr-table td.alloc-cell { padding: 2px 4px; white-space: nowrap; }
+.attr-table td.progress-cell { padding: 4px 8px; width: 99%; }
+.attr-table td.progress-cell .progress-text { font-size: 0.85em; margin-bottom: 3px; }
+.attr-table td.progress-cell .progress-text.at-max { color: var(--green); font-weight: bold; }
+.attr-table td.progress-cell .progress-text.over-max { color: var(--red); font-weight: bold; }
+.attr-table .attr-bar {
+  height: 10px; background: var(--input-bg); border-radius: 5px;
+  overflow: hidden; border: 1px solid var(--border); display: flex;
+}
+.attr-bar-base { height: 100%; background: var(--gold-dim); }
+.attr-bar-alloc { height: 100%; background: var(--green); }
+.attr-bar-over { height: 100%; background: var(--red); }
+.sp-cost-label { color: var(--text-dim); font-size: 0.82em; margin-right: 2px; }
+.attr-table input[type="number"] { width: 50px; text-align: center; padding: 3px 4px; }
 
 /* Notable item display */
 .notable-stats {
@@ -509,6 +516,11 @@ const PRESET_WEAPONS = {
     type:"artifact", artiTagged:true, slotType:"armor",
     stats:{"Bonus Strength":10,"Damage Increase":75},
     note:"More strength than possible from leveling alone. Arti-tagged."
+  },
+  "Wind's Edge": {
+    type:"artifact", artiTagged:false, slotType:"armor",
+    stats:{"Defense Chance Increase":10,"Swing Speed Increase":50,"Damage Increase":50},
+    note:"Strong base DCI/SSI/DI. Not arti-tagged."
   },
   "Swords of Prosperity": {
     type:"artifact", artiTagged:false, slotType:"armor",
@@ -1056,12 +1068,9 @@ const RECOMMENDED_ARMOR_ATTRS = new Set([
 function renderAttrTable(i, s, info) {
   let html = `<table class="attr-table">
     <thead><tr>
-      <th>Attribute</th>
-      <th>SP Cost${info.artiTagged ? ' (2x)' : ''}</th>
-      <th>Base</th>
-      <th>Allocated</th>
-      <th>Slot Total</th>
-      <th>Max</th>
+      <th class="alloc-header">Allocated</th>
+      <th class="attr-header">Attribute</th>
+      <th>Progress</th>
     </tr></thead><tbody>`;
 
   let lastCat = '';
@@ -1072,20 +1081,22 @@ function renderAttrTable(i, s, info) {
 
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
-      html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="6">${attr.cat}</td></tr>`;
+      html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="3">${attr.cat}</td></tr>`;
     }
     const base = info.stats[attr.name] || 0;
     const alloc = s.allocations[attr.name] || 0;
     const total = base + alloc;
     const effectiveCost = info.artiTagged ? attr.sp * 2 : attr.sp;
-    const maxClass = total > attr.max ? 'over-max' : total === attr.max ? 'at-max' : '';
     const isRec = !isWeaponSlot(i) && RECOMMENDED_ARMOR_ATTRS.has(attr.name);
+    const basePct = attr.max > 0 ? Math.min((base / attr.max) * 100, 100) : 0;
+    const allocPct = attr.max > 0 ? Math.min((alloc / attr.max) * 100, 100 - basePct) : 0;
+    const overPct = total > attr.max ? Math.min(((total - attr.max) / attr.max) * 100, 10) : 0;
+    const progressClass = total > attr.max ? 'over-max' : total === attr.max ? 'at-max' : '';
+    const progressText = base > 0 ? `${alloc}+${base}/${attr.max}` : `${alloc}/${attr.max}`;
 
     html += `<tr>
-      <td>${isRec ? `<strong style="color:#e8dcc0" title="Recommended: always max this on armor relayers">${attr.name}</strong>` : attr.name}</td>
-      <td class="sp-cost">${effectiveCost}</td>
-      <td class="base-val">${base || '-'}</td>
-      <td class="alloc-cell" style="white-space:nowrap">
+      <td class="alloc-cell">
+        <span class="sp-cost-label">${effectiveCost}x</span>
         <input type="number" min="0" max="${attr.max - base}" value="${alloc}"
           onchange="updateAlloc(${i},'${attr.name}',this.value,${attr.max - base})">
         <button class="alloc-btn zero-btn" onclick="updateAlloc(${i},'${attr.name}',0,${attr.max - base})">0</button>
@@ -1093,8 +1104,15 @@ function renderAttrTable(i, s, info) {
         <button class="alloc-btn plus" onclick="updateAlloc(${i},'${attr.name}',${alloc + 1},${attr.max - base})">+</button>
         <button class="alloc-btn max-btn" onclick="allocMax(${i},'${attr.name}',${attr.max - base},${effectiveCost})">MAX</button>
       </td>
-      <td class="total-cell ${maxClass}">${total}</td>
-      <td>${attr.max}</td>
+      <td class="attr-name-cell">${isRec ? `<strong style="color:#e8dcc0" title="Recommended: always max this on armor relayers">${attr.name}</strong>` : attr.name}</td>
+      <td class="progress-cell">
+        <div class="progress-text ${progressClass}">${progressText}</div>
+        <div class="attr-bar">
+          ${base > 0 ? `<div class="attr-bar-base" style="width:${basePct}%"></div>` : ''}
+          ${alloc > 0 ? `<div class="attr-bar-alloc" style="width:${allocPct}%"></div>` : ''}
+          ${overPct > 0 ? `<div class="attr-bar-over" style="width:${overPct}%"></div>` : ''}
+        </div>
+      </td>
     </tr>`;
   });
 
@@ -1103,13 +1121,21 @@ function renderAttrTable(i, s, info) {
   const deedLuck = s.luckDeeds * 100;
   const totalLuck = baseLuck + deedLuck;
   if (baseLuck > 0 || deedLuck > 0) {
-    html += `<tr class="cat-row" style="color:var(--gold)"><td colspan="6">Luck (from base + deeds only)</td></tr>
+    const luckBasePct = Math.min((baseLuck / 400) * 100, 100);
+    const luckDeedPct = Math.min((deedLuck / 400) * 100, 100 - luckBasePct);
+    const luckClass = totalLuck > 400 ? 'over-max' : totalLuck === 400 ? 'at-max' : '';
+    const luckText = baseLuck > 0 && deedLuck > 0 ? `${deedLuck}+${baseLuck}/400` : `${totalLuck}/400`;
+    html += `<tr class="cat-row" style="color:var(--gold)"><td colspan="3">Luck (from base + deeds only)</td></tr>
     <tr>
-      <td>Luck</td><td class="sp-cost">-</td>
-      <td class="base-val">${baseLuck || '-'}</td>
-      <td class="sp-cost">+${deedLuck} (deeds)</td>
-      <td class="total-cell">${totalLuck}</td>
-      <td>400</td>
+      <td class="alloc-cell" style="color:var(--text-dim);font-size:0.85em">${baseLuck > 0 ? `Base: ${baseLuck}` : ''} ${deedLuck > 0 ? `Deeds: +${deedLuck}` : ''}</td>
+      <td class="attr-name-cell">Luck</td>
+      <td class="progress-cell">
+        <div class="progress-text ${luckClass}">${luckText}</div>
+        <div class="attr-bar">
+          ${baseLuck > 0 ? `<div class="attr-bar-base" style="width:${luckBasePct}%"></div>` : ''}
+          ${deedLuck > 0 ? `<div class="attr-bar-alloc" style="width:${luckDeedPct}%"></div>` : ''}
+        </div>
+      </td>
     </tr>`;
   }
 
