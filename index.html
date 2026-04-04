@@ -221,6 +221,48 @@ input[type="number"].narrow { width: 55px; }
   .sp-budget { flex-direction: column; align-items: stretch; }
 }
 
+/* Shopping List */
+.shopping-toggle {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--gold);
+  padding: 8px 16px; cursor: pointer; width: 100%; text-align: left;
+  font-size: 1em; border-radius: 6px 6px 0 0; margin-top: 4px;
+}
+.shopping-toggle:hover { background: #1a4a7a; }
+.shopping-panel {
+  background: var(--bg2); border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 6px 6px; padding: 16px; margin-bottom: 12px;
+}
+.shopping-budget {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  padding: 10px 14px; background: var(--bg); border-radius: 6px;
+  border: 1px solid var(--border); flex-wrap: wrap;
+}
+.shopping-budget .ed-label { color: var(--text-dim); font-size: 0.9em; }
+.shopping-budget .ed-value { color: var(--gold); font-weight: bold; font-size: 1.2em; }
+.shopping-budget .ed-purchased { color: var(--green); font-weight: bold; font-size: 1.2em; }
+.ed-bar {
+  flex: 1; min-width: 200px; height: 16px; background: var(--input-bg);
+  border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+}
+.ed-bar-fill { height: 100%; background: var(--green); transition: width 0.3s; border-radius: 8px; }
+.shopping-list { list-style: none; }
+.shopping-slot {
+  margin-bottom: 12px; padding: 10px 14px; background: var(--bg);
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.shopping-slot-header {
+  font-weight: bold; color: var(--gold); font-size: 0.95em;
+  margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.shopping-item {
+  display: flex; align-items: center; gap: 8px; padding: 4px 0;
+  font-size: 0.88em;
+}
+.shopping-item input[type="checkbox"] { accent-color: var(--green); }
+.shopping-item.purchased label { text-decoration: line-through; color: var(--text-dim); }
+.shopping-item .ed-cost { color: var(--gold-dim); margin-left: auto; white-space: nowrap; }
+.shopping-empty { color: var(--text-dim); font-size: 0.9em; font-style: italic; }
+
 /* Toast notification */
 .toast {
   position: fixed; bottom: 20px; right: 20px; padding: 10px 20px;
@@ -239,6 +281,11 @@ input[type="number"].narrow { width: 55px; }
   <button class="summary-toggle" id="summaryToggle" onclick="toggleSummary()">Totals Summary (click to expand)</button>
   <div class="summary-panel" id="summaryPanel" style="display:none;">
     <div id="summaryContent"></div>
+  </div>
+
+  <button class="shopping-toggle" id="shoppingToggle" onclick="toggleShopping()">Shopping List (click to expand)</button>
+  <div class="shopping-panel" id="shoppingPanel" style="display:none;">
+    <div id="shoppingContent"></div>
   </div>
 
   <div class="slot-tabs" id="slotTabs"></div>
@@ -360,6 +407,8 @@ let state = {
   slots: SLOTS.map(() => createEmptySlot()),
   savedWeapons: [], // user-saved custom weapons
   summaryOpen: false,
+  shoppingOpen: false,
+  purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
 };
 
 function createEmptySlot() {
@@ -737,6 +786,7 @@ function changeWeapon(slotIdx, value) {
   renderTabs();
   renderSlot();
   renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
   autoSave();
 }
 
@@ -757,11 +807,13 @@ function updateDeed(slotIdx, field, value) {
   state.slots[slotIdx][field] = val;
   renderSlot();
   renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
   autoSave();
 }
 
 function updateCheckDeed(slotIdx, field, checked) {
   state.slots[slotIdx][field] = checked;
+  if (state.shoppingOpen) renderShoppingList();
   autoSave();
 }
 
@@ -790,6 +842,7 @@ function saveCustomWeapon(slotIdx) {
   renderTabs();
   renderSlot();
   renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
   autoSave();
   showToast(`Saved "${name}" as custom weapon preset`);
 }
@@ -806,6 +859,7 @@ function deleteSavedWeapon(name) {
   renderTabs();
   renderSlot();
   renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
   autoSave();
   showToast(`Deleted "${name}"`);
 }
@@ -817,6 +871,121 @@ function toggleSummary() {
   panel.style.display = state.summaryOpen ? '' : 'none';
   btn.textContent = state.summaryOpen ? 'Totals Summary (click to collapse)' : 'Totals Summary (click to expand)';
   if (state.summaryOpen) renderSummary();
+}
+
+function toggleShopping() {
+  state.shoppingOpen = !state.shoppingOpen;
+  const panel = document.getElementById('shoppingPanel');
+  const btn = document.getElementById('shoppingToggle');
+  panel.style.display = state.shoppingOpen ? '' : 'none';
+  btn.textContent = state.shoppingOpen ? 'Shopping List (click to collapse)' : 'Shopping List (click to expand)';
+  if (state.shoppingOpen) renderShoppingList();
+}
+
+function getShoppingItems() {
+  const items = [];
+  state.slots.forEach((s, si) => {
+    const info = getWeaponInfo(si);
+    if (!info.type || info.isNotable) return;
+    const slotName = SLOTS[si];
+    const weaponLabel = s.weaponChoice === 'custom' ? (s.customName || 'Custom') : s.weaponChoice;
+
+    // Leveling deeds
+    for (let d = 0; d < s.levelingDeeds; d++) {
+      items.push({
+        key: `${si}-leveling-${d}`,
+        slot: slotName,
+        weapon: weaponLabel,
+        label: `Leveling Deed (+10 Levels) #${d + 1}`,
+        ed: 100,
+      });
+    }
+    // Luck deeds
+    for (let d = 0; d < s.luckDeeds; d++) {
+      items.push({
+        key: `${si}-luck-${d}`,
+        slot: slotName,
+        weapon: weaponLabel,
+        label: `Luck Deed (+100) #${d + 1}`,
+        ed: 100,
+      });
+    }
+    // Spell Channeling
+    if (s.spellChanneling) {
+      items.push({ key: `${si}-spellchan`, slot: slotName, weapon: weaponLabel, label: 'Spell Channeling Deed', ed: 100 });
+    }
+    // Self Repair
+    if (s.selfRepair) {
+      items.push({ key: `${si}-selfrepair`, slot: slotName, weapon: weaponLabel, label: 'Self Repair to 5 Deed', ed: 50 });
+    }
+    // Use Best Skill
+    if (s.useBestSkill) {
+      items.push({ key: `${si}-bestskill`, slot: slotName, weapon: weaponLabel, label: 'Use Best Skill Deed', ed: 50 });
+    }
+    // Remove Mage Weapon
+    if (s.removeMageWeapon) {
+      items.push({ key: `${si}-removemage`, slot: slotName, weapon: weaponLabel, label: 'Remove Mage Weapon Deed', ed: 50 });
+    }
+    // Weapon Change Deed (if arti-tagged — user likely wants to remove it)
+    if (info.artiTagged) {
+      items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: 'Weapon Change Deed (remove Arti Tag)', ed: 200 });
+    }
+  });
+  return items;
+}
+
+function renderShoppingList() {
+  const items = getShoppingItems();
+  if (items.length === 0) {
+    document.getElementById('shoppingContent').innerHTML = '<div class="shopping-empty">No deeds needed yet. Configure your slots to see the shopping list.</div>';
+    return;
+  }
+
+  const totalED = items.reduce((sum, it) => sum + it.ed, 0);
+  const purchasedED = items.reduce((sum, it) => state.purchased[it.key] ? sum + it.ed : sum, 0);
+  const purchasedCount = items.filter(it => state.purchased[it.key]).length;
+  const pct = totalED > 0 ? (purchasedED / totalED) * 100 : 0;
+
+  let html = `<div class="shopping-budget">
+    <div><span class="ed-label">Progress:</span> <span class="ed-purchased">${purchasedED}</span> <span class="ed-label">/</span> <span class="ed-value">${totalED} ED</span></div>
+    <div><span class="ed-label">(${purchasedCount} / ${items.length} deeds)</span></div>
+    <div class="ed-bar"><div class="ed-bar-fill" style="width:${pct}%"></div></div>
+  </div>`;
+
+  // Group by slot
+  const grouped = {};
+  items.forEach(it => {
+    if (!grouped[it.slot]) grouped[it.slot] = { weapon: it.weapon, items: [] };
+    grouped[it.slot].items.push(it);
+  });
+
+  html += '<div class="shopping-list">';
+  Object.entries(grouped).forEach(([slot, data]) => {
+    const slotED = data.items.reduce((s, it) => s + it.ed, 0);
+    const slotPurchased = data.items.reduce((s, it) => state.purchased[it.key] ? s + it.ed : s, 0);
+    html += `<div class="shopping-slot">
+      <div class="shopping-slot-header">${slot} — ${data.weapon} <span style="float:right;font-weight:normal;color:var(--text-dim)">${slotPurchased}/${slotED} ED</span></div>`;
+    data.items.forEach(it => {
+      const checked = state.purchased[it.key] ? 'checked' : '';
+      const cls = state.purchased[it.key] ? 'purchased' : '';
+      html += `<div class="shopping-item ${cls}">
+        <input type="checkbox" id="shop_${it.key}" ${checked}
+          onchange="togglePurchased('${it.key}',this.checked)">
+        <label for="shop_${it.key}">${it.label}</label>
+        <span class="ed-cost">${it.ed} ED</span>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  document.getElementById('shoppingContent').innerHTML = html;
+}
+
+function togglePurchased(key, checked) {
+  state.purchased[key] = checked;
+  renderShoppingList();
+  autoSave();
 }
 
 // ===== PERSISTENCE =====
@@ -842,6 +1011,8 @@ function loadFromStorage() {
       state.activeSlot = loaded.activeSlot || 0;
       state.summaryOpen = loaded.summaryOpen || false;
       state.savedWeapons = loaded.savedWeapons || [];
+      state.shoppingOpen = loaded.shoppingOpen || false;
+      state.purchased = loaded.purchased || {};
       if (loaded.slots) {
         loaded.slots.forEach((ls, i) => {
           if (i < SLOTS.length) {
@@ -920,6 +1091,7 @@ function renderAll() {
   renderTabs();
   renderSlot();
   if (state.summaryOpen) renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
 }
 
 // ===== INIT =====
@@ -928,6 +1100,10 @@ renderAll();
 if (state.summaryOpen) {
   document.getElementById('summaryPanel').style.display = '';
   document.getElementById('summaryToggle').textContent = 'Totals Summary (click to collapse)';
+}
+if (state.shoppingOpen) {
+  document.getElementById('shoppingPanel').style.display = '';
+  document.getElementById('shoppingToggle').textContent = 'Shopping List (click to collapse)';
 }
 </script>
 </body>
