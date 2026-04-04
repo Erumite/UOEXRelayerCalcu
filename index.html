@@ -449,6 +449,7 @@ function createEmptySlot() {
     selfRepair: false,
     useBestSkill: false,
     removeMageWeapon: false,
+    useWeaponChangeDeed: false,
     allocations: allocs,
   };
 }
@@ -457,32 +458,34 @@ function createEmptySlot() {
 function getWeaponInfo(slot) {
   const s = state.slots[slot];
   const choice = s.weaponChoice;
+  let result;
 
-  if (choice === "none") return { type: null, stats: {}, artiTagged: false, isNotable: false, spPerLevel: 0 };
-
-  if (NOTABLE_ITEMS[choice]) {
-    return { type: "notable", stats: {...NOTABLE_ITEMS[choice].stats}, artiTagged: false, isNotable: true, spPerLevel: 0 };
-  }
-
-  if (PRESET_WEAPONS[choice]) {
+  if (choice === "none") {
+    result = { type: null, stats: {}, artiTagged: false, rawArtiTagged: false, isNotable: false, spPerLevel: 0 };
+  } else if (NOTABLE_ITEMS[choice]) {
+    result = { type: "notable", stats: {...NOTABLE_ITEMS[choice].stats}, artiTagged: false, rawArtiTagged: false, isNotable: true, spPerLevel: 0 };
+  } else if (PRESET_WEAPONS[choice]) {
     const pw = PRESET_WEAPONS[choice];
-    return { type: pw.type, stats: {...pw.stats}, artiTagged: pw.artiTagged, isNotable: false,
-             spPerLevel: pw.type === "crafted" ? 3 : 5 };
+    result = { type: pw.type, stats: {...pw.stats}, artiTagged: pw.artiTagged, rawArtiTagged: pw.artiTagged, isNotable: false,
+               spPerLevel: pw.type === "crafted" ? 3 : 5 };
+  } else {
+    const saved = state.savedWeapons.find(w => w.name === choice);
+    if (saved) {
+      result = { type: saved.type, stats: {...saved.stats}, artiTagged: saved.artiTagged, rawArtiTagged: saved.artiTagged, isNotable: false,
+                 spPerLevel: saved.type === "crafted" ? 3 : 5 };
+    } else if (choice === "custom") {
+      const spPerLevel = s.customType === "crafted" ? 3 : 5;
+      result = { type: s.customType, stats: {...s.customStats}, artiTagged: s.customArtiTagged, rawArtiTagged: s.customArtiTagged, isNotable: false, spPerLevel };
+    } else {
+      result = { type: null, stats: {}, artiTagged: false, rawArtiTagged: false, isNotable: false, spPerLevel: 0 };
+    }
   }
 
-  // Check saved weapons
-  const saved = state.savedWeapons.find(w => w.name === choice);
-  if (saved) {
-    return { type: saved.type, stats: {...saved.stats}, artiTagged: saved.artiTagged, isNotable: false,
-             spPerLevel: saved.type === "crafted" ? 3 : 5 };
+  // Weapon Change Deed removes arti tag
+  if (result.rawArtiTagged && s.useWeaponChangeDeed) {
+    result.artiTagged = false;
   }
-
-  if (choice === "custom") {
-    const spPerLevel = s.customType === "crafted" ? 3 : 5;
-    return { type: s.customType, stats: {...s.customStats}, artiTagged: s.customArtiTagged, isNotable: false, spPerLevel };
-  }
-
-  return { type: null, stats: {}, artiTagged: false, isNotable: false, spPerLevel: 0 };
+  return result;
 }
 
 function getMaxLuckDeeds(slot) {
@@ -575,7 +578,14 @@ function renderSlot() {
     <div class="config-group">
       ${info.type && !info.isNotable ? `
         <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Artifact (5 SP/lvl)'}</strong>
-        ${info.artiTagged ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>' : ''}</label>
+        ${info.rawArtiTagged ? (info.artiTagged
+          ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
+          : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}</label>
+        ${info.rawArtiTagged ? `<div class="deed-item" style="margin-top:4px">
+          <input type="checkbox" id="wcd_${i}" ${s.useWeaponChangeDeed?'checked':''}
+            onchange="state.slots[${i}].useWeaponChangeDeed=this.checked; renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
+          <label for="wcd_${i}">Use Weapon Change Deed to remove Arti Tag (200 ED)</label>
+        </div>` : ''}
       ` : ''}
       ${info.isNotable ? `<label style="color:var(--gold)">Fixed-stat item (no leveling)</label>` : ''}
       ${!info.type && !info.isNotable ? `<label style="color:var(--text-dim)">Select a weapon to begin</label>` : ''}
@@ -815,6 +825,7 @@ function changeWeapon(slotIdx, value) {
   s.selfRepair = false;
   s.useBestSkill = false;
   s.removeMageWeapon = false;
+  s.useWeaponChangeDeed = false;
   renderTabs();
   renderSlot();
   renderSummary();
@@ -977,8 +988,8 @@ function getShoppingItems() {
     if (s.removeMageWeapon) {
       items.push({ key: `${si}-removemage`, slot: slotName, weapon: weaponLabel, label: 'Remove Mage Weapon Deed', ed: 50 });
     }
-    // Weapon Change Deed (if arti-tagged — user likely wants to remove it)
-    if (info.artiTagged) {
+    // Weapon Change Deed (if user opted to remove arti tag)
+    if (s.useWeaponChangeDeed && info.rawArtiTagged) {
       items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: 'Weapon Change Deed (remove Arti Tag)', ed: 200 });
     }
   });
