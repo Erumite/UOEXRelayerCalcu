@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UO:EX Relayer Calculator</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --accent: #e94560;
+  --gold: #d4a843;
+  --gold-dim: #a07830;
+  --text: #e0e0e0;
+  --text-dim: #8888aa;
+  --green: #4caf50;
+  --red: #e94560;
+  --border: #2a2a4a;
+  --input-bg: #12122a;
+  --cat-hits: #cc6666;
+  --cat-melee: #cc9944;
+  --cat-magic: #7799dd;
+  --cat-stats: #66aa66;
+  --cat-resists: #aa77cc;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+h1 { color: var(--gold); text-align: center; padding: 16px 0 4px; font-size: 1.6em; }
+h1 small { font-size: 0.5em; color: var(--text-dim); display: block; }
+h2 { color: var(--gold); font-size: 1.1em; margin-bottom: 8px; }
+h3 { color: var(--gold-dim); font-size: 0.95em; margin: 12px 0 4px; }
+
+/* Layout */
+.container { max-width: 1400px; margin: 0 auto; padding: 0 12px 40px; }
+
+/* Summary Panel */
+.summary-toggle {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--gold);
+  padding: 8px 16px; cursor: pointer; width: 100%; text-align: left;
+  font-size: 1em; border-radius: 6px 6px 0 0; margin-top: 12px;
+}
+.summary-toggle:hover { background: #1a4a7a; }
+.summary-panel {
+  background: var(--bg2); border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 6px 6px; padding: 12px; overflow-x: auto;
+  margin-bottom: 12px;
+}
+.summary-table { width: 100%; border-collapse: collapse; font-size: 0.82em; }
+.summary-table th, .summary-table td {
+  padding: 3px 8px; border: 1px solid var(--border); text-align: center; white-space: nowrap;
+}
+.summary-table th { background: var(--bg3); color: var(--gold); position: sticky; top: 0; }
+.summary-table th.attr-name { text-align: left; min-width: 160px; }
+.summary-table td.attr-name { text-align: left; font-weight: bold; }
+.summary-table .cat-header { background: var(--bg); font-weight: bold; text-align: left; }
+.over-cap { color: var(--red); font-weight: bold; }
+.at-cap { color: var(--green); font-weight: bold; }
+
+/* Slot Tabs */
+.slot-tabs {
+  display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 0;
+  background: var(--bg2); padding: 8px 8px 0; border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border); border-bottom: none;
+}
+.slot-tab {
+  padding: 6px 12px; background: var(--bg); border: 1px solid var(--border);
+  border-bottom: none; color: var(--text-dim); cursor: pointer;
+  border-radius: 6px 6px 0 0; font-size: 0.85em; transition: all 0.15s;
+}
+.slot-tab:hover { color: var(--text); background: var(--bg3); }
+.slot-tab.active {
+  color: var(--gold); background: var(--bg3); border-color: var(--gold-dim);
+  font-weight: bold;
+}
+.slot-tab .tab-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  margin-left: 4px; vertical-align: middle;
+}
+.slot-tab .tab-dot.configured { background: var(--green); }
+
+/* Slot Content */
+.slot-content {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px; padding: 16px;
+}
+
+/* Weapon Config */
+.weapon-config {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.config-group { display: flex; flex-direction: column; gap: 6px; }
+.config-group label { color: var(--text-dim); font-size: 0.85em; }
+select, input[type="number"], input[type="text"] {
+  background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 8px; border-radius: 4px; font-size: 0.9em;
+}
+select:focus, input:focus { border-color: var(--gold-dim); outline: none; }
+input[type="number"] { width: 70px; }
+input[type="number"].narrow { width: 55px; }
+
+/* SP Budget Bar */
+.sp-budget {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+  padding: 10px 14px; background: var(--bg); border-radius: 6px;
+  border: 1px solid var(--border); flex-wrap: wrap;
+}
+.sp-budget .sp-label { color: var(--text-dim); font-size: 0.85em; }
+.sp-budget .sp-value { color: var(--gold); font-weight: bold; font-size: 1.1em; }
+.sp-budget .sp-remaining { font-size: 1.2em; }
+.sp-budget .sp-remaining.negative { color: var(--red); }
+.sp-bar {
+  flex: 1; min-width: 200px; height: 14px; background: var(--input-bg);
+  border-radius: 7px; overflow: hidden; border: 1px solid var(--border);
+}
+.sp-bar-fill { height: 100%; background: var(--green); transition: width 0.2s; border-radius: 7px; }
+.sp-bar-fill.warning { background: var(--gold); }
+.sp-bar-fill.over { background: var(--red); }
+
+/* Deeds Section */
+.deeds-section {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+  margin-bottom: 16px; padding: 10px 14px; background: var(--bg);
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.deed-item { display: flex; align-items: center; gap: 6px; font-size: 0.85em; }
+.deed-item label { color: var(--text-dim); white-space: nowrap; }
+.deed-item input[type="checkbox"] { accent-color: var(--gold); }
+
+/* Custom Weapon Section */
+.custom-weapon {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px; margin-bottom: 16px;
+}
+.custom-stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 12px;
+}
+.custom-stat-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  font-size: 0.82em; padding: 2px 0;
+}
+.custom-stat-row label { color: var(--text-dim); flex: 1; }
+
+/* Attribute Table */
+.attr-table { width: 100%; border-collapse: collapse; }
+.attr-table th, .attr-table td {
+  padding: 5px 8px; border: 1px solid var(--border); font-size: 0.88em;
+}
+.attr-table th {
+  background: var(--bg3); color: var(--gold); text-align: center;
+  position: sticky; top: 0; z-index: 1;
+}
+.attr-table th:first-child { text-align: left; min-width: 180px; }
+.attr-table .cat-row td {
+  background: var(--bg); font-weight: bold; padding: 8px;
+  border-bottom: 2px solid var(--border);
+}
+.attr-table .cat-row.cat-hits td { color: var(--cat-hits); }
+.attr-table .cat-row.cat-melee td { color: var(--cat-melee); }
+.attr-table .cat-row.cat-magic td { color: var(--cat-magic); }
+.attr-table .cat-row.cat-stats td { color: var(--cat-stats); }
+.attr-table .cat-row.cat-resists td { color: var(--cat-resists); }
+.attr-table td { text-align: center; }
+.attr-table td:first-child { text-align: left; }
+.attr-table td.sp-cost { color: var(--text-dim); }
+.attr-table td.base-val { color: var(--gold-dim); }
+.attr-table td.alloc-cell { padding: 2px 4px; }
+.attr-table td.total-cell { font-weight: bold; }
+.attr-table td.total-cell.at-max { color: var(--green); }
+.attr-table td.total-cell.over-max { color: var(--red); }
+.attr-table input[type="number"] { width: 58px; text-align: center; padding: 3px 4px; }
+
+/* Notable item display */
+.notable-stats {
+  padding: 12px; background: var(--bg); border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.notable-stats .stat-line { font-size: 0.9em; padding: 2px 0; color: var(--text-dim); }
+.notable-stats .stat-line span { color: var(--gold); }
+
+/* Actions */
+.actions {
+  display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;
+}
+.btn {
+  padding: 8px 16px; border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; font-size: 0.85em; transition: all 0.15s;
+}
+.btn-primary { background: var(--bg3); color: var(--gold); }
+.btn-primary:hover { background: #1a4a7a; }
+.btn-danger { background: #3a1a1a; color: var(--red); }
+.btn-danger:hover { background: #5a2a2a; }
+.btn-secondary { background: var(--bg); color: var(--text-dim); }
+.btn-secondary:hover { background: var(--bg3); color: var(--text); }
+
+/* Saved Weapons */
+.saved-weapons-section {
+  margin-top: 12px; padding: 12px; background: var(--bg);
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.saved-weapon-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; font-size: 0.85em; border-bottom: 1px solid var(--border);
+}
+.saved-weapon-item:last-child { border-bottom: none; }
+.saved-weapon-item .del-btn {
+  background: none; border: none; color: var(--red); cursor: pointer;
+  font-size: 1.1em; padding: 0 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .weapon-config { grid-template-columns: 1fr; }
+  .sp-budget { flex-direction: column; align-items: stretch; }
+}
+
+/* Toast notification */
+.toast {
+  position: fixed; bottom: 20px; right: 20px; padding: 10px 20px;
+  background: var(--bg3); color: var(--gold); border: 1px solid var(--gold-dim);
+  border-radius: 6px; font-size: 0.9em; opacity: 0; transition: opacity 0.3s;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>UO:EX Relayer Calculator <small>Plan your levelable weapon relayers across all armor slots</small></h1>
+
+  <button class="summary-toggle" id="summaryToggle" onclick="toggleSummary()">Totals Summary (click to expand)</button>
+  <div class="summary-panel" id="summaryPanel" style="display:none;">
+    <div id="summaryContent"></div>
+  </div>
+
+  <div class="slot-tabs" id="slotTabs"></div>
+  <div class="slot-content" id="slotContent"></div>
+
+  <div class="actions">
+    <button class="btn btn-primary" onclick="saveToStorage()">Save All</button>
+    <button class="btn btn-secondary" onclick="exportData()">Export JSON</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import JSON</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="btn btn-danger" onclick="resetAll()">Reset All Slots</button>
+  </div>
+</div>
+
+<div style="text-align:center;padding:24px 0 16px;font-size:0.85em;color:var(--text-dim)">
+  <a href="https://ko-fi.com/eremite" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none">Support this project on Ko-fi</a>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA =====
+const SLOTS = [
+  "Gloves","Skirt","Shirt","Earrings","Arms","Robe","Head",
+  "Ring","Boots","Belt","Bracelet","Neck","Cloak","Legs","Body"
+];
+
+const ATTRIBUTES = [
+  // Weapon Hits
+  {name:"Hit Life Leech",       cat:"Weapon Hits", sp:3, max:60, cap:null},
+  {name:"Hit Stamina Leech",    cat:"Weapon Hits", sp:3, max:60, cap:null},
+  {name:"Hit Mana Leech",       cat:"Weapon Hits", sp:3, max:60, cap:null},
+  {name:"Hit Lower Attack",     cat:"Weapon Hits", sp:3, max:60, cap:null},
+  {name:"Hit Lower Defense",    cat:"Weapon Hits", sp:3, max:60, cap:null},
+  {name:"Hit Magic Arrow",      cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Harm",             cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Fireball",         cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Lightning",        cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Dispel",           cat:"Weapon Hits", sp:4, max:60, cap:null},
+  // Melee
+  {name:"Defense Chance Increase", cat:"Melee", sp:3, max:50, cap:65},
+  {name:"Hit Chance Increase",     cat:"Melee", sp:3, max:45, cap:45},
+  {name:"Damage Increase",         cat:"Melee", sp:4, max:50, cap:100},
+  {name:"Swing Speed Increase",    cat:"Melee", sp:4, max:40, cap:60},
+  {name:"Reflect Physical Damage", cat:"Melee", sp:3, max:15, cap:null},
+  // Magic
+  {name:"Spell Damage Increase",  cat:"Magic", sp:2, max:20, cap:null},
+  {name:"Faster Cast Recovery",    cat:"Magic", sp:5, max:6,  cap:6},
+  {name:"Faster Casting",          cat:"Magic", sp:50,max:1,  cap:4},
+  {name:"Lower Mana Cost",         cat:"Magic", sp:5, max:10, cap:40},
+  {name:"Lower Reagent Cost",      cat:"Magic", sp:5, max:20, cap:100},
+  {name:"Enhance Potions",         cat:"Magic", sp:2, max:25, cap:null},
+  // Character Stats
+  {name:"Regen Hits",       cat:"Character Stats", sp:2, max:6,  cap:55},
+  {name:"Regen Stamina",    cat:"Character Stats", sp:1, max:10, cap:40},
+  {name:"Regen Mana",       cat:"Character Stats", sp:6, max:6,  cap:35},
+  {name:"Bonus Strength",   cat:"Character Stats", sp:4, max:8,  cap:null},
+  {name:"Bonus Dex",        cat:"Character Stats", sp:4, max:8,  cap:null},
+  {name:"Bonus Int",        cat:"Character Stats", sp:4, max:8,  cap:null},
+  {name:"Bonus Hits",       cat:"Character Stats", sp:3, max:8,  cap:null},
+  {name:"Bonus Stamina",    cat:"Character Stats", sp:3, max:8,  cap:null},
+  {name:"Bonus Mana",       cat:"Character Stats", sp:3, max:8,  cap:null},
+  // Resistances
+  {name:"Resist Physical",  cat:"Resistances", sp:5, max:20, cap:null},
+  {name:"Resist Fire",      cat:"Resistances", sp:5, max:20, cap:null},
+  {name:"Resist Cold",      cat:"Resistances", sp:5, max:20, cap:null},
+  {name:"Resist Poison",    cat:"Resistances", sp:5, max:20, cap:null},
+  {name:"Resist Energy",    cat:"Resistances", sp:5, max:20, cap:null},
+];
+
+const CATEGORIES = ["Weapon Hits","Melee","Magic","Character Stats","Resistances"];
+const CAT_CLASSES = {
+  "Weapon Hits":"cat-hits","Melee":"cat-melee","Magic":"cat-magic",
+  "Character Stats":"cat-stats","Resistances":"cat-resists"
+};
+
+const PRESET_WEAPONS = {
+  "Titan's Hammer": {
+    type:"artifact", artiTagged:true,
+    stats:{"Bonus Strength":15,"Hit Chance Increase":15,"Damage Increase":50},
+    note:"Most Strength. Arti-tagged (double SP cost, use Weapon Change Deed to remove)."
+  },
+  "Bone Crusher": {
+    type:"artifact", artiTagged:true,
+    stats:{"Bonus Strength":10,"Damage Increase":75},
+    note:"More strength than possible from leveling alone. Arti-tagged."
+  },
+  "Swords of Prosperity": {
+    type:"artifact", artiTagged:false,
+    stats:{"Luck":200,"Faster Casting":1},
+    note:"Saves on Luck Deeds + expensive Faster Casting."
+  },
+  "Cavorting Club": {
+    type:"artifact", artiTagged:true,
+    stats:{"Swing Speed Increase":35,"Damage Increase":35,"Resist Fire":8,"Resist Cold":8,"Resist Poison":8,"Resist Energy":8},
+    note:"Strong base SSI/DI + resists. Arti-tagged."
+  },
+};
+
+const NOTABLE_ITEMS = {
+  "Spirit of Totem": {
+    stats:{"Bonus Strength":20,"Reflect Physical Damage":15,"Hit Chance Increase":15,
+           "Resist Physical":20,"Resist Fire":3,"Resist Cold":8,"Resist Poison":4,"Resist Energy":4},
+    note:"Fixed stats, no leveling."
+  },
+  "Hide of the Werewolf King": {
+    stats:{"Bonus Hits":20,"Regen Hits":5,"Bonus Stamina":15,"Bonus Strength":10,
+           "Resist Physical":22,"Resist Fire":-10,"Resist Cold":20},
+    note:"Fixed stats, no leveling. Night Sight included."
+  },
+};
+
+// Attributes that can appear on base weapons but aren't SP-levelable (tracked for totals)
+const EXTRA_TRACKED = ["Luck"];
+
+// ===== STATE =====
+let state = {
+  activeSlot: 0,
+  slots: SLOTS.map(() => createEmptySlot()),
+  savedWeapons: [], // user-saved custom weapons
+  summaryOpen: false,
+};
+
+function createEmptySlot() {
+  const allocs = {};
+  ATTRIBUTES.forEach(a => allocs[a.name] = 0);
+  return {
+    weaponChoice: "none", // "none", preset name, notable name, "custom", or saved weapon name
+    customName: "",
+    customType: "artifact", // "crafted" or "artifact"
+    customArtiTagged: false,
+    customStats: {},
+    levelingDeeds: 0,
+    luckDeeds: 0,
+    spellChanneling: false,
+    selfRepair: false,
+    useBestSkill: false,
+    removeMageWeapon: false,
+    allocations: allocs,
+  };
+}
+
+// ===== SP CALCULATION =====
+function getWeaponInfo(slot) {
+  const s = state.slots[slot];
+  const choice = s.weaponChoice;
+
+  if (choice === "none") return { type: null, stats: {}, artiTagged: false, isNotable: false, spPerLevel: 0 };
+
+  if (NOTABLE_ITEMS[choice]) {
+    return { type: "notable", stats: {...NOTABLE_ITEMS[choice].stats}, artiTagged: false, isNotable: true, spPerLevel: 0 };
+  }
+
+  if (PRESET_WEAPONS[choice]) {
+    const pw = PRESET_WEAPONS[choice];
+    return { type: pw.type, stats: {...pw.stats}, artiTagged: pw.artiTagged, isNotable: false,
+             spPerLevel: pw.type === "crafted" ? 3 : 5 };
+  }
+
+  // Check saved weapons
+  const saved = state.savedWeapons.find(w => w.name === choice);
+  if (saved) {
+    return { type: saved.type, stats: {...saved.stats}, artiTagged: saved.artiTagged, isNotable: false,
+             spPerLevel: saved.type === "crafted" ? 3 : 5 };
+  }
+
+  if (choice === "custom") {
+    const spPerLevel = s.customType === "crafted" ? 3 : 5;
+    return { type: s.customType, stats: {...s.customStats}, artiTagged: s.customArtiTagged, isNotable: false, spPerLevel };
+  }
+
+  return { type: null, stats: {}, artiTagged: false, isNotable: false, spPerLevel: 0 };
+}
+
+function getMaxLuckDeeds(slot) {
+  const info = getWeaponInfo(slot);
+  const baseLuck = info.stats["Luck"] || 0;
+  return Math.max(0, Math.floor((400 - baseLuck) / 100));
+}
+
+function getTotalSP(slot) {
+  const info = getWeaponInfo(slot);
+  if (info.isNotable || !info.type) return 0;
+  const deeds = state.slots[slot].levelingDeeds;
+  return (100 + Math.min(deeds, 9)) * info.spPerLevel;
+}
+
+function getSpentSP(slot) {
+  const s = state.slots[slot];
+  const info = getWeaponInfo(slot);
+  let spent = 0;
+  ATTRIBUTES.forEach(attr => {
+    const val = s.allocations[attr.name] || 0;
+    if (val > 0) {
+      const cost = info.artiTagged ? attr.sp * 2 : attr.sp;
+      spent += val * cost;
+    }
+  });
+  return spent;
+}
+
+function getSlotTotal(slot, attrName) {
+  const s = state.slots[slot];
+  const info = getWeaponInfo(slot);
+  const base = info.stats[attrName] || 0;
+  const alloc = s.allocations[attrName] || 0;
+  // Luck deeds
+  if (attrName === "Luck") {
+    return base + (s.luckDeeds * 100);
+  }
+  return base + alloc;
+}
+
+// ===== RENDER =====
+function renderTabs() {
+  const container = document.getElementById('slotTabs');
+  container.innerHTML = SLOTS.map((name, i) => {
+    const s = state.slots[i];
+    const configured = s.weaponChoice !== "none";
+    return `<button class="slot-tab ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
+      ${name}<span class="tab-dot ${configured ? 'configured' : ''}"></span>
+    </button>`;
+  }).join('');
+}
+
+function renderSlot() {
+  const i = state.activeSlot;
+  const s = state.slots[i];
+  const info = getWeaponInfo(i);
+  const totalSP = getTotalSP(i);
+  const spentSP = getSpentSP(i);
+  const remaining = totalSP - spentSP;
+
+  let html = '';
+
+  // Weapon Selection
+  html += `<div class="weapon-config">
+    <div class="config-group">
+      <label>Weapon / Item for ${SLOTS[i]}</label>
+      <select onchange="changeWeapon(${i}, this.value)" id="weaponSelect">
+        <option value="none" ${s.weaponChoice==='none'?'selected':''}>-- None --</option>
+        <optgroup label="Preset Weapons (Levelable)">
+          ${Object.keys(PRESET_WEAPONS).map(n =>
+            `<option value="${n}" ${s.weaponChoice===n?'selected':''}>${n}</option>`
+          ).join('')}
+        </optgroup>
+        <optgroup label="Notable Items (Fixed Stats)">
+          ${Object.keys(NOTABLE_ITEMS).map(n =>
+            `<option value="${n}" ${s.weaponChoice===n?'selected':''}>${n}</option>`
+          ).join('')}
+        </optgroup>
+        ${state.savedWeapons.length ? `<optgroup label="Saved Custom Weapons">
+          ${state.savedWeapons.map(w =>
+            `<option value="${w.name}" ${s.weaponChoice===w.name?'selected':''}>${w.name} (${w.type})</option>`
+          ).join('')}
+        </optgroup>` : ''}
+        <optgroup label="Custom">
+          <option value="custom" ${s.weaponChoice==='custom'?'selected':''}>Custom Weapon...</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="config-group">
+      ${info.type && !info.isNotable ? `
+        <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Artifact (5 SP/lvl)'}</strong>
+        ${info.artiTagged ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>' : ''}</label>
+      ` : ''}
+      ${info.isNotable ? `<label style="color:var(--gold)">Fixed-stat item (no leveling)</label>` : ''}
+      ${!info.type && !info.isNotable ? `<label style="color:var(--text-dim)">Select a weapon to begin</label>` : ''}
+      ${PRESET_WEAPONS[s.weaponChoice] ? `<div style="font-size:0.8em;color:var(--text-dim);margin-top:4px">${PRESET_WEAPONS[s.weaponChoice].note}</div>` : ''}
+      ${NOTABLE_ITEMS[s.weaponChoice] ? `<div style="font-size:0.8em;color:var(--text-dim);margin-top:4px">${NOTABLE_ITEMS[s.weaponChoice].note}</div>` : ''}
+    </div>
+  </div>`;
+
+  // Custom weapon config
+  if (s.weaponChoice === 'custom') {
+    html += renderCustomWeaponSection(i, s);
+  }
+
+  // SP Budget & Deeds (only for levelable weapons)
+  if (info.type && !info.isNotable) {
+    const pct = totalSP > 0 ? Math.min((spentSP / totalSP) * 100, 100) : 0;
+    const barClass = remaining < 0 ? 'over' : pct > 85 ? 'warning' : '';
+    html += `<div class="sp-budget">
+      <div><span class="sp-label">Total SP:</span> <span class="sp-value">${totalSP}</span></div>
+      <div><span class="sp-label">Spent:</span> <span class="sp-value">${spentSP}</span></div>
+      <div><span class="sp-label">Remaining:</span> <span class="sp-remaining ${remaining < 0 ? 'negative' : ''}">${remaining}</span></div>
+      <div class="sp-bar"><div class="sp-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+    </div>`;
+
+    html += `<div class="deeds-section">
+      <div class="deed-item">
+        <label>Leveling Deeds (+10 Levels):</label>
+        <input type="number" class="narrow" min="0" max="9" value="${s.levelingDeeds}"
+          onchange="updateDeed(${i},'levelingDeeds',this.value)">
+        <span style="font-size:0.75em;color:var(--text-dim)">(max 9, +${info.spPerLevel} SP each)</span>
+      </div>
+      <div class="deed-item">
+        <label>Luck Deeds (+100):</label>
+        <input type="number" class="narrow" min="0" max="${getMaxLuckDeeds(i)}" value="${s.luckDeeds}"
+          onchange="updateDeed(${i},'luckDeeds',this.value)">
+        <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}, total ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="sc_${i}" ${s.spellChanneling?'checked':''}
+          onchange="updateCheckDeed(${i},'spellChanneling',this.checked)">
+        <label for="sc_${i}">Spell Channeling</label>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
+          onchange="updateCheckDeed(${i},'selfRepair',this.checked)">
+        <label for="sr_${i}">Self Repair 5</label>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
+          onchange="updateCheckDeed(${i},'useBestSkill',this.checked)">
+        <label for="ubs_${i}">Use Best Skill</label>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="rmw_${i}" ${s.removeMageWeapon?'checked':''}
+          onchange="updateCheckDeed(${i},'removeMageWeapon',this.checked)">
+        <label for="rmw_${i}">Remove Mage Weapon</label>
+      </div>
+    </div>`;
+  }
+
+  // Notable item stats display
+  if (info.isNotable) {
+    html += `<div class="notable-stats"><h3>Item Stats</h3>`;
+    Object.entries(info.stats).forEach(([k,v]) => {
+      html += `<div class="stat-line">${k}: <span>${v >= 0 ? '+' : ''}${v}${k.startsWith('Resist') || k.includes('Increase') || k.includes('Damage') || k.includes('Reflect') ? '%' : ''}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Attribute allocation table (for levelable weapons)
+  if (info.type && !info.isNotable) {
+    html += renderAttrTable(i, s, info);
+  }
+
+  document.getElementById('slotContent').innerHTML = html;
+}
+
+function renderCustomWeaponSection(i, s) {
+  let html = `<div class="custom-weapon">
+    <h3>Custom Weapon Configuration</h3>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+      <div class="config-group">
+        <label>Name</label>
+        <input type="text" value="${s.customName}" placeholder="Weapon name"
+          onchange="state.slots[${i}].customName=this.value; autoSave()">
+      </div>
+      <div class="config-group">
+        <label>Type</label>
+        <select onchange="state.slots[${i}].customType=this.value; renderSlot(); autoSave()">
+          <option value="artifact" ${s.customType==='artifact'?'selected':''}>Artifact (5 SP/lvl)</option>
+          <option value="crafted" ${s.customType==='crafted'?'selected':''}>Crafted (3 SP/lvl)</option>
+        </select>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="customArti_${i}" ${s.customArtiTagged?'checked':''}
+          onchange="state.slots[${i}].customArtiTagged=this.checked; renderSlot(); autoSave()">
+        <label for="customArti_${i}">Arti-Tagged (2x SP cost)</label>
+      </div>
+      <button class="btn btn-primary" onclick="saveCustomWeapon(${i})" style="align-self:flex-end">Save as Preset</button>
+    </div>
+    <h3>Base Stats (from the weapon before leveling)</h3>
+    <div class="custom-stats-grid">`;
+
+  // Show all levelable attributes + Luck for base stat input
+  const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
+  allStats.forEach(name => {
+    const val = s.customStats[name] || 0;
+    html += `<div class="custom-stat-row">
+      <label>${name}</label>
+      <input type="number" class="narrow" min="-100" max="200" value="${val}"
+        onchange="state.slots[${i}].customStats['${name}']=parseInt(this.value)||0; renderSlot(); autoSave()">
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  return html;
+}
+
+function renderAttrTable(i, s, info) {
+  let html = `<table class="attr-table">
+    <thead><tr>
+      <th>Attribute</th>
+      <th>SP Cost${info.artiTagged ? ' (2x)' : ''}</th>
+      <th>Base</th>
+      <th>Allocated</th>
+      <th>Slot Total</th>
+      <th>Max</th>
+    </tr></thead><tbody>`;
+
+  let lastCat = '';
+  ATTRIBUTES.forEach(attr => {
+    if (attr.cat !== lastCat) {
+      lastCat = attr.cat;
+      html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="6">${attr.cat}</td></tr>`;
+    }
+    const base = info.stats[attr.name] || 0;
+    const alloc = s.allocations[attr.name] || 0;
+    const total = base + alloc;
+    const effectiveCost = info.artiTagged ? attr.sp * 2 : attr.sp;
+    const maxClass = total > attr.max ? 'over-max' : total === attr.max ? 'at-max' : '';
+
+    html += `<tr>
+      <td>${attr.name}</td>
+      <td class="sp-cost">${effectiveCost}</td>
+      <td class="base-val">${base || '-'}</td>
+      <td class="alloc-cell">
+        <input type="number" min="0" max="${attr.max - base}" value="${alloc}"
+          onchange="updateAlloc(${i},'${attr.name}',this.value,${attr.max - base})">
+      </td>
+      <td class="total-cell ${maxClass}">${total}</td>
+      <td>${attr.max}</td>
+    </tr>`;
+  });
+
+  // Show Luck from base weapon + deeds (not SP-allocatable)
+  const baseLuck = info.stats["Luck"] || 0;
+  const deedLuck = s.luckDeeds * 100;
+  const totalLuck = baseLuck + deedLuck;
+  if (baseLuck > 0 || deedLuck > 0) {
+    html += `<tr class="cat-row" style="color:var(--gold)"><td colspan="6">Luck (from base + deeds only)</td></tr>
+    <tr>
+      <td>Luck</td><td class="sp-cost">-</td>
+      <td class="base-val">${baseLuck || '-'}</td>
+      <td class="sp-cost">+${deedLuck} (deeds)</td>
+      <td class="total-cell">${totalLuck}</td>
+      <td>400</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table>`;
+  return html;
+}
+
+function renderSummary() {
+  let html = `<table class="summary-table"><thead><tr>
+    <th class="attr-name">Attribute</th>
+    <th>Gear Cap</th>`;
+  SLOTS.forEach(name => { html += `<th>${name}</th>`; });
+  html += `<th style="background:var(--bg);color:var(--gold)">TOTAL</th></tr></thead><tbody>`;
+
+  let lastCat = '';
+  ATTRIBUTES.forEach(attr => {
+    if (attr.cat !== lastCat) {
+      lastCat = attr.cat;
+      html += `<tr><td class="cat-header" colspan="${SLOTS.length + 3}">${attr.cat}</td></tr>`;
+    }
+    let total = 0;
+    html += `<tr><td class="attr-name">${attr.name}</td><td>${attr.cap !== null ? attr.cap : '-'}</td>`;
+    SLOTS.forEach((_, si) => {
+      const val = getSlotTotal(si, attr.name);
+      total += val;
+      html += `<td>${val || ''}</td>`;
+    });
+    const capClass = attr.cap !== null ? (total > attr.cap ? 'over-cap' : total === attr.cap ? 'at-cap' : '') : '';
+    html += `<td class="${capClass}" style="font-weight:bold">${total}</td></tr>`;
+  });
+
+  // Luck row
+  let totalLuck = 0;
+  html += `<tr><td class="cat-header" colspan="${SLOTS.length + 3}">Luck</td></tr>`;
+  html += `<tr><td class="attr-name">Luck</td><td>7200</td>`;
+  SLOTS.forEach((_, si) => {
+    const val = getSlotTotal(si, "Luck");
+    totalLuck += val;
+    html += `<td>${val || ''}</td>`;
+  });
+  html += `<td style="font-weight:bold">${totalLuck}</td></tr>`;
+
+  html += `</tbody></table>`;
+  document.getElementById('summaryContent').innerHTML = html;
+}
+
+// ===== ACTIONS =====
+function switchSlot(i) {
+  state.activeSlot = i;
+  renderTabs();
+  renderSlot();
+}
+
+function changeWeapon(slotIdx, value) {
+  const s = state.slots[slotIdx];
+  s.weaponChoice = value;
+  // Reset allocations when changing weapon
+  ATTRIBUTES.forEach(a => s.allocations[a.name] = 0);
+  s.levelingDeeds = 0;
+  s.luckDeeds = 0;
+  s.spellChanneling = false;
+  s.selfRepair = false;
+  s.useBestSkill = false;
+  s.removeMageWeapon = false;
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  autoSave();
+}
+
+function updateAlloc(slotIdx, attrName, value, maxAlloc) {
+  let val = parseInt(value) || 0;
+  if (val < 0) val = 0;
+  if (val > maxAlloc) val = maxAlloc;
+  state.slots[slotIdx].allocations[attrName] = val;
+  renderSlot();
+  renderSummary();
+  autoSave();
+}
+
+function updateDeed(slotIdx, field, value) {
+  let val = parseInt(value) || 0;
+  if (field === 'levelingDeeds') val = Math.max(0, Math.min(9, val));
+  if (field === 'luckDeeds') val = Math.max(0, Math.min(getMaxLuckDeeds(slotIdx), val));
+  state.slots[slotIdx][field] = val;
+  renderSlot();
+  renderSummary();
+  autoSave();
+}
+
+function updateCheckDeed(slotIdx, field, checked) {
+  state.slots[slotIdx][field] = checked;
+  autoSave();
+}
+
+function saveCustomWeapon(slotIdx) {
+  const s = state.slots[slotIdx];
+  const name = s.customName.trim();
+  if (!name) { showToast("Enter a weapon name first"); return; }
+  if (PRESET_WEAPONS[name] || NOTABLE_ITEMS[name]) { showToast("Name conflicts with a preset"); return; }
+
+  const existing = state.savedWeapons.findIndex(w => w.name === name);
+  const weapon = {
+    name,
+    type: s.customType,
+    artiTagged: s.customArtiTagged,
+    stats: {...s.customStats},
+  };
+
+  if (existing >= 0) {
+    state.savedWeapons[existing] = weapon;
+  } else {
+    state.savedWeapons.push(weapon);
+  }
+
+  // Switch to the saved weapon
+  s.weaponChoice = name;
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  autoSave();
+  showToast(`Saved "${name}" as custom weapon preset`);
+}
+
+function deleteSavedWeapon(name) {
+  state.savedWeapons = state.savedWeapons.filter(w => w.name !== name);
+  // Reset any slots using this weapon
+  state.slots.forEach(s => {
+    if (s.weaponChoice === name) {
+      s.weaponChoice = "none";
+      ATTRIBUTES.forEach(a => s.allocations[a.name] = 0);
+    }
+  });
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  autoSave();
+  showToast(`Deleted "${name}"`);
+}
+
+function toggleSummary() {
+  state.summaryOpen = !state.summaryOpen;
+  const panel = document.getElementById('summaryPanel');
+  const btn = document.getElementById('summaryToggle');
+  panel.style.display = state.summaryOpen ? '' : 'none';
+  btn.textContent = state.summaryOpen ? 'Totals Summary (click to collapse)' : 'Totals Summary (click to expand)';
+  if (state.summaryOpen) renderSummary();
+}
+
+// ===== PERSISTENCE =====
+const STORAGE_KEY = 'uoex_relayer_calc';
+
+function autoSave() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e) { /* silent */ }
+}
+
+function saveToStorage() {
+  autoSave();
+  showToast('Saved to browser storage');
+}
+
+function loadFromStorage() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) {
+      const loaded = JSON.parse(data);
+      // Merge with defaults to handle new attributes
+      state.activeSlot = loaded.activeSlot || 0;
+      state.summaryOpen = loaded.summaryOpen || false;
+      state.savedWeapons = loaded.savedWeapons || [];
+      if (loaded.slots) {
+        loaded.slots.forEach((ls, i) => {
+          if (i < SLOTS.length) {
+            const merged = createEmptySlot();
+            Object.assign(merged, ls);
+            // Ensure all attributes exist in allocations
+            ATTRIBUTES.forEach(a => {
+              if (!(a.name in merged.allocations)) merged.allocations[a.name] = 0;
+            });
+            state.slots[i] = merged;
+          }
+        });
+      }
+    }
+  } catch(e) { console.warn('Failed to load state:', e); }
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'uoex_relayer_calc.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported to file');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const loaded = JSON.parse(e.target.result);
+      state = loaded;
+      // Ensure integrity
+      if (!state.slots || state.slots.length !== SLOTS.length) {
+        showToast('Invalid file format');
+        return;
+      }
+      state.slots.forEach((s, i) => {
+        ATTRIBUTES.forEach(a => {
+          if (!(a.name in s.allocations)) s.allocations[a.name] = 0;
+        });
+      });
+      renderAll();
+      autoSave();
+      showToast('Imported successfully');
+    } catch(err) {
+      showToast('Failed to import: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAll() {
+  if (!confirm('Reset all slots? This cannot be undone.')) return;
+  state.slots = SLOTS.map(() => createEmptySlot());
+  state.activeSlot = 0;
+  renderAll();
+  autoSave();
+  showToast('All slots reset');
+}
+
+// ===== UTILS =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function renderAll() {
+  renderTabs();
+  renderSlot();
+  if (state.summaryOpen) renderSummary();
+}
+
+// ===== INIT =====
+loadFromStorage();
+renderAll();
+if (state.summaryOpen) {
+  document.getElementById('summaryPanel').style.display = '';
+  document.getElementById('summaryToggle').textContent = 'Totals Summary (click to collapse)';
+}
+</script>
+</body>
+</html>
