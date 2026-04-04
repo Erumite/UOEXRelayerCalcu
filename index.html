@@ -1150,17 +1150,18 @@ function renderAttrTable(i, s, info) {
     const allocPct = attr.max > 0 ? Math.min((alloc / attr.max) * 100, 100 - basePct) : 0;
     const overPct = total > attr.max ? Math.min(((total - attr.max) / attr.max) * 100, 10) : 0;
     const progressClass = total > attr.max ? 'over-max' : total === attr.max ? 'at-max' : '';
+    const maxAlloc = Math.max(0, attr.max - base);
     const progressText = base > 0 ? `${alloc}+${base}/${attr.max}` : `${alloc}/${attr.max}`;
 
     html += `<tr>
       <td class="alloc-cell">
         <span class="sp-cost-label">${effectiveCost}x</span>
-        <input type="number" min="0" max="${attr.max - base}" value="${alloc}"
-          onchange="updateAlloc(${i},'${attr.name}',this.value,${attr.max - base})">
-        <button class="alloc-btn zero-btn" onclick="updateAlloc(${i},'${attr.name}',0,${attr.max - base})">0</button>
-        <button class="alloc-btn minus" onclick="updateAlloc(${i},'${attr.name}',${alloc - 1},${attr.max - base})">-</button>
-        <button class="alloc-btn plus" onclick="updateAlloc(${i},'${attr.name}',${alloc + 1},${attr.max - base})">+</button>
-        <button class="alloc-btn max-btn" onclick="allocMax(${i},'${attr.name}',${attr.max - base},${effectiveCost})">MAX</button>
+        <input type="number" min="0" max="${maxAlloc}" value="${alloc}"
+          onchange="updateAlloc(${i},'${attr.name}',this.value,${maxAlloc})">
+        <button class="alloc-btn zero-btn" onclick="updateAlloc(${i},'${attr.name}',0,${maxAlloc})">0</button>
+        <button class="alloc-btn minus" onclick="updateAlloc(${i},'${attr.name}',${alloc - 1},${maxAlloc})">-</button>
+        <button class="alloc-btn plus" onclick="updateAlloc(${i},'${attr.name}',${alloc + 1},${maxAlloc})">+</button>
+        <button class="alloc-btn max-btn" onclick="allocMax(${i},'${attr.name}',${maxAlloc},${effectiveCost})">MAX</button>
       </td>
       <td class="attr-name-cell">${isRec ? `<strong style="color:#e8dcc0" title="Recommended: always max this on armor relayers">${attr.name}</strong>` : attr.name}</td>
       <td class="progress-cell">
