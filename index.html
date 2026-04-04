@@ -1003,7 +1003,7 @@ function renderCustomClothingSection(i, s) {
     <h3>Fixed Stats</h3>
     <div class="custom-stats-grid">`;
 
-  const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
+  const allStats = [...ATTRIBUTES.filter(a => a.cat !== "Weapon Hits").map(a => a.name), "Luck"];
   allStats.forEach(name => {
     const val = s.customStats[name] || 0;
     html += `<div class="custom-stat-row">
