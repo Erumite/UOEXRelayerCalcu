@@ -634,7 +634,7 @@ let state = {
   shoppingOpen: false,
   purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
   editingSavedItem: false,
-  baseStats: { str: 0, dex: 0, int: 0 },
+  baseStats: { str: 0, dex: 0, int: 0, statCap: 300 },
   buffs: { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false },
 };
 
@@ -1192,21 +1192,7 @@ const BASE_STAT_MAP = {
 };
 
 function renderSummary() {
-  let html = `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
-    <span style="color:var(--gold);font-weight:bold" title="Your character's stats with no gear equipped">Base Stats <span style="cursor:help;color:var(--text-dim);font-size:0.85em" title="Enter your character's Strength, Dexterity, and Intelligence when wearing no bonus gear.">[?]</span></span>
-    <label style="font-size:0.88em;color:var(--text-dim)">STR
-      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.str}"
-        onchange="state.baseStats.str=parseInt(this.value)||0; renderSummary(); autoSave()">
-    </label>
-    <label style="font-size:0.88em;color:var(--text-dim)">DEX
-      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.dex}"
-        onchange="state.baseStats.dex=parseInt(this.value)||0; renderSummary(); autoSave()">
-    </label>
-    <label style="font-size:0.88em;color:var(--text-dim)">INT
-      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.int}"
-        onchange="state.baseStats.int=parseInt(this.value)||0; renderSummary(); autoSave()">
-    </label>
-  </div>`;
+  let html = '';
 
   // Calculate gear totals for status bar
   function gearTotal(attrName) {
@@ -1265,9 +1251,29 @@ function renderSummary() {
   const bc = `onchange="toggleBuff(this.dataset.buff, this.checked)"`;
 
   html += `<div class="char-status-wrapper">
+  <div class="buff-panel" style="align-self:center">
+    <h3>Base Stats <span class="unequip-hint" title="Your character's stats when wearing no bonus gear.">[?]</span></h3>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--text-dim)">STR
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.str}"
+        onchange="state.baseStats.str=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--text-dim)">DEX
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.dex}"
+        onchange="state.baseStats.dex=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--text-dim)">INT
+      <input type="number" class="narrow" min="0" max="250" value="${state.baseStats.int}"
+        onchange="state.baseStats.int=parseInt(this.value)||0; renderSummary(); autoSave()">
+    </label>
+    <hr style="border:none;border-top:1px solid var(--border);margin:4px 0">
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.88em;color:var(--text-dim)">MAX
+      <input type="number" class="narrow" min="300" max="350" value="${state.baseStats.statCap}"
+        onchange="state.baseStats.statCap=Math.max(300,Math.min(350,parseInt(this.value)||300)); renderSummary(); autoSave()">
+    </label>
+  </div>
   <table class="char-status">
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Physical Resist', rPhys)}</tr>
-    <tr>${sv('Strength', totalStr)}${sv('Hit Points', hp)}<td class="empty"></td>${rv('Fire Resist', rFire)}</tr>
+    <tr>${sv('Strength', totalStr)}${sv('Hit Points', hp)}${sv('Stat Cap', `${bStr+bDex+bInt}/${state.baseStats.statCap}`)}${rv('Fire Resist', rFire)}</tr>
     <tr>${sv('Dexterity', totalDex)}${sv('Stamina', stam)}${sv('Luck', luck)}${rv('Cold Resist', rCold)}</tr>
     <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}<td class="empty"></td>${rv('Poison Resist', rPois)}</tr>
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Energy Resist', rEnrg)}</tr>
