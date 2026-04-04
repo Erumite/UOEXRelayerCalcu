@@ -263,6 +263,21 @@ input[type="number"].narrow { width: 55px; }
 .shopping-item .ed-cost { color: var(--gold-dim); margin-left: auto; white-space: nowrap; }
 .shopping-empty { color: var(--text-dim); font-size: 0.9em; font-style: italic; }
 
+/* Alloc buttons */
+.alloc-btn {
+  border: none; cursor: pointer; border-radius: 3px; font-weight: bold;
+  width: 22px; height: 22px; font-size: 0.85em; line-height: 22px;
+  padding: 0; text-align: center; vertical-align: middle;
+}
+.alloc-btn.plus { background: #2a4a2a; color: var(--green); }
+.alloc-btn.plus:hover { background: #3a6a3a; }
+.alloc-btn.minus { background: #4a2a2a; color: var(--red); }
+.alloc-btn.minus:hover { background: #6a3a3a; }
+.alloc-btn.zero-btn { background: #2a2a3a; color: var(--text-dim); font-size: 0.7em; width: 22px; }
+.alloc-btn.zero-btn:hover { background: #3a3a5a; color: var(--text); }
+.alloc-btn.max-btn { background: #3a3020; color: var(--gold); font-size: 0.7em; width: 32px; }
+.alloc-btn.max-btn:hover { background: #5a4a30; }
+
 /* Unequipped */
 .slot-tab.unequipped { opacity: 0.45; text-decoration: line-through; }
 .slot-tab.unequipped.active { opacity: 0.7; }
@@ -1070,9 +1085,13 @@ function renderAttrTable(i, s, info) {
       <td>${isRec ? `<strong style="color:#e8dcc0" title="Recommended: always max this on armor relayers">${attr.name}</strong>` : attr.name}</td>
       <td class="sp-cost">${effectiveCost}</td>
       <td class="base-val">${base || '-'}</td>
-      <td class="alloc-cell">
+      <td class="alloc-cell" style="white-space:nowrap">
         <input type="number" min="0" max="${attr.max - base}" value="${alloc}"
           onchange="updateAlloc(${i},'${attr.name}',this.value,${attr.max - base})">
+        <button class="alloc-btn zero-btn" onclick="updateAlloc(${i},'${attr.name}',0,${attr.max - base})">0</button>
+        <button class="alloc-btn minus" onclick="updateAlloc(${i},'${attr.name}',${alloc - 1},${attr.max - base})">-</button>
+        <button class="alloc-btn plus" onclick="updateAlloc(${i},'${attr.name}',${alloc + 1},${attr.max - base})">+</button>
+        <button class="alloc-btn max-btn" onclick="allocMax(${i},'${attr.name}',${attr.max - base},${effectiveCost})">MAX</button>
       </td>
       <td class="total-cell ${maxClass}">${total}</td>
       <td>${attr.max}</td>
@@ -1203,6 +1222,17 @@ function updateAlloc(slotIdx, attrName, value, maxAlloc) {
   renderSlot();
   renderSummary();
   autoSave();
+}
+
+function allocMax(slotIdx, attrName, maxAlloc, cost) {
+  const totalSP = getTotalSP(slotIdx);
+  const spentSP = getSpentSP(slotIdx);
+  const remaining = totalSP - spentSP;
+  const current = state.slots[slotIdx].allocations[attrName] || 0;
+  // How many more points can we afford?
+  const canAfford = Math.floor(remaining / cost);
+  const val = Math.min(maxAlloc, current + canAfford);
+  updateAlloc(slotIdx, attrName, val, maxAlloc);
 }
 
 function updateDeed(slotIdx, field, value) {
