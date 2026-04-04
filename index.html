@@ -56,8 +56,21 @@ h3 { color: var(--gold-dim); font-size: 0.95em; margin: 12px 0 4px; }
   padding: 3px 8px; border: 1px solid var(--border); text-align: center; white-space: nowrap;
 }
 .summary-table th { background: var(--bg3); color: var(--gold); position: sticky; top: 0; }
-.summary-table th.attr-name { text-align: left; min-width: 160px; }
-.summary-table td.attr-name { text-align: left; font-weight: bold; }
+.summary-table th.s-attr { text-align: left; width: 1%; white-space: nowrap; }
+.summary-table td.s-attr { text-align: left; font-weight: bold; white-space: nowrap; }
+.summary-table th.s-progress { width: 99%; }
+.summary-table td.s-progress { padding: 4px 8px; }
+.summary-table td.s-progress .s-bar {
+  height: 10px; background: var(--input-bg); border-radius: 5px;
+  overflow: hidden; border: 1px solid var(--border); display: flex; margin-top: 3px;
+}
+.summary-table td.s-progress .s-bar-fill { height: 100%; background: var(--green); }
+.summary-table td.s-progress .s-bar-over { height: 100%; background: var(--red); }
+.summary-table td.s-progress .s-text { font-size: 0.9em; }
+.summary-table td.s-progress .s-text.at-cap { color: var(--green); font-weight: bold; }
+.summary-table td.s-progress .s-text.over-cap { color: var(--red); font-weight: bold; }
+.summary-table .s-slot { padding: 2px 3px; font-size: 0.78em; min-width: 0; white-space: nowrap; }
+.summary-table th.s-slot { padding: 2px 3px; font-size: 0.72em; }
 .summary-table .cat-header { background: var(--bg); font-weight: bold; text-align: left; }
 .over-cap { color: var(--red); font-weight: bold; }
 .at-cap { color: var(--green); font-weight: bold; }
@@ -1166,47 +1179,81 @@ function renderSummary() {
     </label>
   </div>`;
 
+  const colCount = 2 + SLOTS.length;
   html += `<table class="summary-table"><thead><tr>
-    <th class="attr-name">Attribute</th>
-    <th>Gear Cap</th>`;
+    <th class="s-attr">Attribute</th>
+    <th class="s-progress">Total</th>`;
   SLOTS.forEach((name, si) => {
     const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
-    html += `<th class="${uc}">${name}</th>`;
+    html += `<th class="s-slot ${uc}">${name}</th>`;
   });
-  html += `<th style="background:var(--bg);color:var(--gold)">TOTAL</th></tr></thead><tbody>`;
+  html += `</tr></thead><tbody>`;
 
   let lastCat = '';
   ATTRIBUTES.forEach(attr => {
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
-      html += `<tr><td class="cat-header" colspan="${SLOTS.length + 3}">${attr.cat}</td></tr>`;
+      html += `<tr><td class="cat-header" colspan="${colCount}">${attr.cat}</td></tr>`;
     }
     let total = 0;
-    html += `<tr><td class="attr-name">${attr.name}</td><td>${attr.cap !== null ? attr.cap : '-'}</td>`;
+    const slotVals = [];
     SLOTS.forEach((_, si) => {
       const val = getSlotTotal(si, attr.name);
-      const uc = state.slots[si].unequipped;
-      if (!uc) total += val;
-      html += `<td class="${uc ? 'unequipped-col' : ''}">${val || ''}</td>`;
+      slotVals.push(val);
+      if (!state.slots[si].unequipped) total += val;
     });
-    // Add base stat if applicable
     const baseKey = BASE_STAT_MAP[attr.name];
     if (baseKey) total += state.baseStats[baseKey];
-    const capClass = attr.cap !== null ? (total > attr.cap ? 'over-cap' : total === attr.cap ? 'at-cap' : '') : '';
-    html += `<td class="${capClass}" style="font-weight:bold">${total}${baseKey ? ` <span style="font-size:0.75em;color:var(--text-dim)">(${state.baseStats[baseKey]} base)</span>` : ''}</td></tr>`;
+
+    html += `<tr><td class="s-attr">${attr.name}</td>`;
+    if (attr.cap !== null) {
+      const fillPct = attr.cap > 0 ? Math.min((total / attr.cap) * 100, 100) : 0;
+      const overPct = total > attr.cap ? Math.min(((total - attr.cap) / attr.cap) * 100, 10) : 0;
+      const textClass = total > attr.cap ? 'over-cap' : total === attr.cap ? 'at-cap' : '';
+      const baseNote = baseKey ? ` <span style="font-size:0.8em;color:var(--text-dim)">(${state.baseStats[baseKey]} base)</span>` : '';
+      html += `<td class="s-progress">
+        <div class="s-text ${textClass}">${total}/${attr.cap}${baseNote}</div>
+        <div class="s-bar">
+          <div class="s-bar-fill" style="width:${fillPct}%"></div>
+          ${overPct > 0 ? `<div class="s-bar-over" style="width:${overPct}%"></div>` : ''}
+        </div>
+      </td>`;
+    } else {
+      const baseNote = baseKey ? ` <span style="font-size:0.8em;color:var(--text-dim)">(${state.baseStats[baseKey]} base)</span>` : '';
+      html += `<td class="s-progress"><div class="s-text">${total}${baseNote}</div></td>`;
+    }
+    SLOTS.forEach((_, si) => {
+      const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
+      html += `<td class="s-slot ${uc}">${slotVals[si] || ''}</td>`;
+    });
+    html += `</tr>`;
   });
 
   // Luck row
   let totalLuck = 0;
-  html += `<tr><td class="cat-header" colspan="${SLOTS.length + 3}">Luck</td></tr>`;
-  html += `<tr><td class="attr-name">Luck</td><td>7200</td>`;
+  const luckVals = [];
+  html += `<tr><td class="cat-header" colspan="${colCount}">Luck</td></tr>`;
   SLOTS.forEach((_, si) => {
     const val = getSlotTotal(si, "Luck");
-    const uc = state.slots[si].unequipped;
-    if (!uc) totalLuck += val;
-    html += `<td class="${uc ? 'unequipped-col' : ''}">${val || ''}</td>`;
+    luckVals.push(val);
+    if (!state.slots[si].unequipped) totalLuck += val;
   });
-  html += `<td style="font-weight:bold">${totalLuck}</td></tr>`;
+  const luckCap = 7200;
+  const luckFillPct = Math.min((totalLuck / luckCap) * 100, 100);
+  const luckOverPct = totalLuck > luckCap ? Math.min(((totalLuck - luckCap) / luckCap) * 100, 10) : 0;
+  const luckTextClass = totalLuck > luckCap ? 'over-cap' : totalLuck === luckCap ? 'at-cap' : '';
+  html += `<tr><td class="s-attr">Luck</td><td class="s-progress">
+    <div class="s-text ${luckTextClass}">${totalLuck}/${luckCap}</div>
+    <div class="s-bar">
+      <div class="s-bar-fill" style="width:${luckFillPct}%"></div>
+      ${luckOverPct > 0 ? `<div class="s-bar-over" style="width:${luckOverPct}%"></div>` : ''}
+    </div>
+  </td>`;
+  SLOTS.forEach((_, si) => {
+    const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
+    html += `<td class="s-slot ${uc}">${luckVals[si] || ''}</td>`;
+  });
+  html += `</tr>`;
 
   html += `</tbody></table>`;
   document.getElementById('summaryContent').innerHTML = html;
