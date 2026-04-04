@@ -707,7 +707,8 @@ function getWeaponInfo(slot) {
 function getMaxLuckDeeds(slot) {
   const info = getWeaponInfo(slot);
   const baseLuck = info.stats["Luck"] || 0;
-  return Math.max(0, Math.floor((400 - baseLuck) / 100));
+  if (baseLuck >= 400) return 0;
+  return Math.max(0, Math.ceil((400 - baseLuck) / 100));
 }
 
 function getTotalSP(slot) {
@@ -738,7 +739,7 @@ function getSlotTotal(slot, attrName) {
   const alloc = s.allocations[attrName] || 0;
   // Luck deeds
   if (attrName === "Luck") {
-    return base + (s.luckDeeds * 100);
+    return Math.min(base + (s.luckDeeds * 100), 400);
   }
   return base + alloc;
 }
@@ -1119,7 +1120,10 @@ function renderAttrTable(i, s, info) {
   ATTRIBUTES.forEach(attr => {
     // Hide Weapon Hits on armor slots; hide Melee, Magic, Resistances on weapon slot
     if (attr.cat === "Weapon Hits" && !isWeaponSlot(i)) return;
-    if (isWeaponSlot(i) && (attr.cat === "Melee" || attr.cat === "Magic" || attr.cat === "Resistances")) return;
+    if (isWeaponSlot(i) && (attr.cat === "Melee" || attr.cat === "Resistances")) return;
+    if (isWeaponSlot(i) && attr.cat === "Magic" && attr.name !== "Spell Damage Increase") return;
+    if (isWeaponSlot(i) && attr.name === "Hit Dispel") return;
+    if (isWeaponSlot(i) && (attr.name === "Regen Hits" || attr.name === "Regen Stamina" || attr.name === "Regen Mana")) return;
 
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
