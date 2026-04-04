@@ -744,6 +744,9 @@ function getSpentSP(slot) {
 function getSlotTotal(slot, attrName) {
   const s = state.slots[slot];
   const info = getWeaponInfo(slot);
+  // Weapon Hits only count on the weapon slot
+  const attr = ATTRIBUTES.find(a => a.name === attrName);
+  if (attr && attr.cat === "Weapon Hits" && !isWeaponSlot(slot)) return 0;
   const base = info.stats[attrName] || 0;
   const alloc = s.allocations[attrName] || 0;
   // Luck deeds
