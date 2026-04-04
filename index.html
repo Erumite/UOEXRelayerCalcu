@@ -1349,7 +1349,7 @@ function renderSummary() {
     <th class="s-progress">Total</th>`;
   SLOTS.forEach((name, si) => {
     const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
-    html += `<th class="s-slot ${uc}">${name}</th>`;
+    html += `<th class="s-slot ${uc}" style="cursor:pointer" onclick="toggleUnequip(${si})" title="Click to toggle equip/unequip">${name}</th>`;
   });
   html += `</tr></thead><tbody>`;
 
@@ -1568,6 +1568,16 @@ const BUFF_EXCLUSIONS = {
   vampiricEmbrace: ['angelicFaith'],
   angelicFaith: ['vampiricEmbrace'],
 };
+
+function toggleUnequip(slotIdx) {
+  if (isWeaponSlot(slotIdx)) return;
+  state.slots[slotIdx].unequipped = !state.slots[slotIdx].unequipped;
+  renderTabs();
+  renderSlot();
+  renderSummary();
+  if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+}
 
 function toggleBuff(buff, checked) {
   state.buffs[buff] = checked;
