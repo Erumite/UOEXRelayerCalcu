@@ -263,6 +263,15 @@ input[type="number"].narrow { width: 55px; }
 .shopping-item .ed-cost { color: var(--gold-dim); margin-left: auto; white-space: nowrap; }
 .shopping-empty { color: var(--text-dim); font-size: 0.9em; font-style: italic; }
 
+/* Weapon slot tab */
+.slot-tab.weapon-slot {
+  background: #2a1a1a; border-color: #6a3030;
+}
+.slot-tab.weapon-slot:hover { background: #3a2020; }
+.slot-tab.weapon-slot.active {
+  background: #4a2020; border-color: var(--red); color: var(--red);
+}
+
 /* Toast notification */
 .toast {
   position: fixed; bottom: 20px; right: 20px; padding: 10px 20px;
@@ -309,9 +318,13 @@ input[type="number"].narrow { width: 55px; }
 <script>
 // ===== DATA =====
 const SLOTS = [
+  "Weapon",
   "Gloves","Skirt","Shirt","Earrings","Arms","Robe","Head",
   "Ring","Boots","Belt","Bracelet","Neck","Cloak","Legs","Body"
 ];
+
+const WEAPON_SLOT = 0; // index of the Weapon slot
+function isWeaponSlot(i) { return i === WEAPON_SLOT; }
 
 const ATTRIBUTES = [
   // Weapon Hits
@@ -533,7 +546,8 @@ function renderTabs() {
   container.innerHTML = SLOTS.map((name, i) => {
     const s = state.slots[i];
     const configured = s.weaponChoice !== "none";
-    return `<button class="slot-tab ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
+    const wepClass = isWeaponSlot(i) ? 'weapon-slot' : '';
+    return `<button class="slot-tab ${wepClass} ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
       ${name}<span class="tab-dot ${configured ? 'configured' : ''}"></span>
     </button>`;
   }).join('');
@@ -726,6 +740,9 @@ function renderAttrTable(i, s, info) {
 
   let lastCat = '';
   ATTRIBUTES.forEach(attr => {
+    // Hide Weapon Hits on armor slots
+    if (attr.cat === "Weapon Hits" && !isWeaponSlot(i)) return;
+
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
       html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="6">${attr.cat}</td></tr>`;
@@ -933,14 +950,16 @@ function getShoppingItems() {
     const slotName = SLOTS[si];
     const weaponLabel = s.weaponChoice === 'custom' ? (s.customName || 'Custom') : s.weaponChoice;
 
-    // Relayer Deed — always needed for weapons; for notable items only if not in native slot
-    if (info.isNotable) {
-      const notable = NOTABLE_ITEMS[s.weaponChoice];
-      if (notable && notable.nativeSlot !== slotName) {
+    // Relayer Deed — needed for armor slots; for notable items only if not in native slot; not for Weapon slot
+    if (!isWeaponSlot(si)) {
+      if (info.isNotable) {
+        const notable = NOTABLE_ITEMS[s.weaponChoice];
+        if (notable && notable.nativeSlot !== slotName) {
+          items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
+        }
+      } else {
         items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
       }
-    } else {
-      items.push({ key: `${si}-relayer`, slot: slotName, weapon: weaponLabel, label: 'Relayer Deed', ed: 500 });
     }
 
     // Luck deeds apply to notable items too
