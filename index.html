@@ -799,21 +799,21 @@ function renderSlot() {
           onchange="updateDeed(${i},'luckDeeds',this.value)">
         <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}, total ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
       </div>
-      <div class="deed-item">
+      ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="sc_${i}" ${s.spellChanneling?'checked':''}
           onchange="updateCheckDeed(${i},'spellChanneling',this.checked)">
         <label for="sc_${i}">Spell Channeling</label>
-      </div>
+      </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
           onchange="updateCheckDeed(${i},'selfRepair',this.checked)">
         <label for="sr_${i}">Self Repair 5</label>
       </div>
-      <div class="deed-item">
+      ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
           onchange="updateCheckDeed(${i},'useBestSkill',this.checked)">
         <label for="ubs_${i}">Use Best Skill</label>
-      </div>
+      </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="rmw_${i}" ${s.removeMageWeapon?'checked':''}
           onchange="updateCheckDeed(${i},'removeMageWeapon',this.checked)">
