@@ -70,8 +70,19 @@ h3 { color: var(--gold-dim); font-size: 0.95em; margin: 12px 0 4px; }
 .summary-table td.s-progress .s-text.at-cap { color: var(--green); font-weight: bold; }
 .summary-table td.s-progress .s-text.over-cap { color: var(--red); font-weight: bold; }
 /* Character Status Bar */
+.char-status-wrapper {
+  display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+  margin: 12px 0;
+}
+.buff-panel {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 6px;
+  align-self: center;
+}
+.buff-panel h3 { color: var(--gold-dim); font-size: 0.85em; margin: 0 0 4px; }
+.buff-panel .deed-item { font-size: 0.85em; }
 .char-status {
-  margin: 12px auto; border-collapse: collapse;
+  border-collapse: collapse;
   background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
   overflow: hidden;
 }
@@ -624,7 +635,7 @@ let state = {
   purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
   editingSavedItem: false,
   baseStats: { str: 0, dex: 0, int: 0 },
-  buffs: { protection: false, vampiricEmbrace: false },
+  buffs: { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, greaterStrPotion: false, strengthSpell: false },
 };
 
 function createEmptySlot() {
@@ -1214,15 +1225,30 @@ function renderSummary() {
   const gHits = gearTotal("Bonus Hits");
   const gStam = gearTotal("Bonus Stamina");
   const gMana = gearTotal("Bonus Mana");
-  const totalStr = bStr + gStr;
-  const totalDex = bDex + gDex;
-  const totalInt = bInt + gInt;
-  const hp = Math.floor(bStr / 2 + 50 + gStr * 1.5 + gHits);
-  const stam = bDex + gDex + gStam;
-  const mana = bInt + gInt + gMana;
+  const enhPot = gearTotal("Enhance Potions");
+
+  // Base stats before buffs
+  let totalStr = bStr + gStr;
+  let totalDex = bDex + gDex;
+  let totalInt = bInt + gInt;
+
+  // Apply stat buffs
+  if (state.buffs.angelicFaith) { totalStr += 20; totalDex += 20; totalInt += 20; }
+  if (state.buffs.strengthSpell) { totalStr += 11; }
+  if (state.buffs.greaterStrPotion) { totalStr += Math.floor(20 * (1 + enhPot / 100)); }
+  if (state.buffs.bless) {
+    totalStr += Math.floor(totalStr * 0.11);
+    totalDex += Math.floor(totalDex * 0.11);
+    totalInt += Math.floor(totalInt * 0.11);
+  }
+
+  const hp = Math.floor(bStr / 2 + 50 + (totalStr - bStr) * 1.5 + gHits);
+  const stam = totalDex + gStam;
+  const mana = totalInt + gMana;
   const luck = gearTotal("Luck");
-  // Apply buff modifiers
-  const buffPhys = state.buffs.protection ? -15 : 0;
+
+  // Apply resist buff modifiers
+  const buffPhys = state.buffs.protection ? -9 : 0;
   const buffFire = state.buffs.vampiricEmbrace ? -25 : 0;
   const rPhys = Math.min(gearTotal("Resist Physical") + buffPhys, 70);
   const rFire = Math.min(gearTotal("Resist Fire") + buffFire, 70);
@@ -1232,29 +1258,50 @@ function renderSummary() {
   const rc = v => v >= 70 ? 'resist-capped' : 'resist-low';
   const sv = (label, val) => `<td><span class="stat-label">${label}</span><span class="stat-value">${val}</span></td>`;
   const rv = (label, val) => `<td><span class="stat-label">${label}</span><span class="resist-value ${rc(val)}">${val}/70</span></td>`;
+  const bc = `onchange="toggleBuff(this.dataset.buff, this.checked)"`;
 
-  html += `<div style="display:flex;gap:12px;justify-content:center;margin:8px 0;flex-wrap:wrap">
-    <div class="deed-item">
-      <input type="checkbox" id="buff_prot" ${state.buffs.protection?'checked':''}
-        onchange="state.buffs.protection=this.checked; renderSummary(); autoSave()">
-      <label for="buff_prot">Protection</label>
-      <span class="unequip-hint" title="-15% Physical Resistance">[?]</span>
-    </div>
-    <div class="deed-item">
-      <input type="checkbox" id="buff_vamp" ${state.buffs.vampiricEmbrace?'checked':''}
-        onchange="state.buffs.vampiricEmbrace=this.checked; renderSummary(); autoSave()">
-      <label for="buff_vamp">Vampiric Embrace</label>
-      <span class="unequip-hint" title="+15 Stamina Regen, +3 Mana Regen, -25% Fire Resistance">[?]</span>
-    </div>
-  </div>`;
-
-  html += `<table class="char-status">
+  html += `<div class="char-status-wrapper">
+  <table class="char-status">
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Physical Resist', rPhys)}</tr>
     <tr>${sv('Strength', totalStr)}${sv('Hit Points', hp)}<td class="empty"></td>${rv('Fire Resist', rFire)}</tr>
     <tr>${sv('Dexterity', totalDex)}${sv('Stamina', stam)}${sv('Luck', luck)}${rv('Cold Resist', rCold)}</tr>
     <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}<td class="empty"></td>${rv('Poison Resist', rPois)}</tr>
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Energy Resist', rEnrg)}</tr>
-  </table>`;
+  </table>
+  <div class="buff-panel">
+    <h3>Active Buffs / Effects</h3>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_prot" data-buff="protection" ${state.buffs.protection?'checked':''} ${bc}>
+      <label for="buff_prot">Protection</label>
+      <span class="unequip-hint" title="-9% Physical Resistance (with max Inscription; -15% without)">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_vamp" data-buff="vampiricEmbrace" ${state.buffs.vampiricEmbrace?'checked':''} ${bc}>
+      <label for="buff_vamp">Vampiric Embrace</label>
+      <span class="unequip-hint" title="+15 Stamina Regen, +3 Mana Regen, -25% Fire Resist">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_angel" data-buff="angelicFaith" ${state.buffs.angelicFaith?'checked':''} ${bc}>
+      <label for="buff_angel">Angelic Faith</label>
+      <span class="unequip-hint" title="+20 STR/DEX/INT (at 100 Spirit Speak). Also boosts Anatomy, Mace Fighting, and Healing.">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_bless" data-buff="bless" ${state.buffs.bless?'checked':''} ${bc}>
+      <label for="buff_bless">Bless</label>
+      <span class="unequip-hint" title="+11% to STR/DEX/INT (at 100 Evaluate Intelligence). Applied after other stat buffs.">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_strpot" data-buff="greaterStrPotion" ${state.buffs.greaterStrPotion?'checked':''} ${bc}>
+      <label for="buff_strpot">Greater Strength Potion</label>
+      <span class="unequip-hint" title="+20 STR, enhanced by Enhance Potions (current: ${enhPot}% = +${Math.floor(20*(1+enhPot/100))} STR)">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_strsp" data-buff="strengthSpell" ${state.buffs.strengthSpell?'checked':''} ${bc}>
+      <label for="buff_strsp">Strength Spell</label>
+      <span class="unequip-hint" title="+11 STR (flat bonus)">[?]</span>
+    </div>
+  </div>
+  </div>`;
 
   const colCount = 2 + SLOTS.length;
   html += `<table class="summary-table"><thead><tr>
@@ -1473,6 +1520,22 @@ function deleteSavedWeapon(name) {
   showToast(`Deleted "${name}"`);
 }
 
+const BUFF_EXCLUSIONS = {
+  strengthSpell: ['greaterStrPotion'],
+  greaterStrPotion: ['strengthSpell'],
+  vampiricEmbrace: ['angelicFaith'],
+  angelicFaith: ['vampiricEmbrace'],
+};
+
+function toggleBuff(buff, checked) {
+  state.buffs[buff] = checked;
+  if (checked && BUFF_EXCLUSIONS[buff]) {
+    BUFF_EXCLUSIONS[buff].forEach(ex => { state.buffs[ex] = false; });
+  }
+  renderSummary();
+  autoSave();
+}
+
 function toggleSummary() {
   state.summaryOpen = !state.summaryOpen;
   const panel = document.getElementById('summaryPanel');
@@ -1648,7 +1711,7 @@ function loadFromStorage() {
       state.savedWeapons = loaded.savedWeapons || [];
       state.savedClothing = loaded.savedClothing || [];
       state.baseStats = loaded.baseStats || { str: 0, dex: 0, int: 0 };
-      state.buffs = loaded.buffs || { protection: false, vampiricEmbrace: false };
+      state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, greaterStrPotion: false, strengthSpell: false, ...(loaded.buffs || {}) };
       state.shoppingOpen = loaded.shoppingOpen || false;
       state.purchased = loaded.purchased || {};
       if (loaded.slots) {
