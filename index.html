@@ -69,6 +69,23 @@ h3 { color: var(--gold-dim); font-size: 0.95em; margin: 12px 0 4px; }
 .summary-table td.s-progress .s-text { font-size: 0.9em; }
 .summary-table td.s-progress .s-text.at-cap { color: var(--green); font-weight: bold; }
 .summary-table td.s-progress .s-text.over-cap { color: var(--red); font-weight: bold; }
+/* Character Status Bar */
+.char-status {
+  margin: 12px auto; border-collapse: collapse;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden;
+}
+.char-status td {
+  padding: 6px 14px; border: 1px solid var(--border); text-align: center;
+  font-size: 0.88em; min-width: 100px;
+}
+.char-status td.empty { border-color: transparent; background: transparent; }
+.char-status .stat-label { color: var(--text-dim); font-size: 0.75em; display: block; }
+.char-status .stat-value { color: var(--gold); font-weight: bold; font-size: 1.1em; }
+.char-status .resist-value { font-weight: bold; font-size: 1.1em; }
+.char-status .resist-capped { color: var(--green); }
+.char-status .resist-low { color: var(--text); }
+
 .summary-table .s-slot { padding: 2px 3px; font-size: 0.78em; min-width: 0; white-space: nowrap; }
 .summary-table th.s-slot { padding: 2px 3px; font-size: 0.72em; }
 .summary-table .cat-header { background: var(--bg); font-weight: bold; text-align: left; }
@@ -607,6 +624,7 @@ let state = {
   purchased: {}, // key: "slotIdx-deedType-deedIdx" => true/false
   editingSavedItem: false,
   baseStats: { str: 0, dex: 0, int: 0 },
+  buffs: { protection: false, vampiricEmbrace: false },
 };
 
 function createEmptySlot() {
@@ -1179,6 +1197,65 @@ function renderSummary() {
     </label>
   </div>`;
 
+  // Calculate gear totals for status bar
+  function gearTotal(attrName) {
+    let t = 0;
+    SLOTS.forEach((_, si) => {
+      if (!state.slots[si].unequipped) t += getSlotTotal(si, attrName);
+    });
+    return t;
+  }
+  const bStr = state.baseStats.str;
+  const bDex = state.baseStats.dex;
+  const bInt = state.baseStats.int;
+  const gStr = gearTotal("Bonus Strength");
+  const gDex = gearTotal("Bonus Dex");
+  const gInt = gearTotal("Bonus Int");
+  const gHits = gearTotal("Bonus Hits");
+  const gStam = gearTotal("Bonus Stamina");
+  const gMana = gearTotal("Bonus Mana");
+  const totalStr = bStr + gStr;
+  const totalDex = bDex + gDex;
+  const totalInt = bInt + gInt;
+  const hp = Math.floor(bStr / 2 + 50 + gStr * 1.5 + gHits);
+  const stam = bDex + gDex + gStam;
+  const mana = bInt + gInt + gMana;
+  const luck = gearTotal("Luck");
+  // Apply buff modifiers
+  const buffPhys = state.buffs.protection ? -15 : 0;
+  const buffFire = state.buffs.vampiricEmbrace ? -25 : 0;
+  const rPhys = Math.min(gearTotal("Resist Physical") + buffPhys, 70);
+  const rFire = Math.min(gearTotal("Resist Fire") + buffFire, 70);
+  const rCold = Math.min(gearTotal("Resist Cold"), 70);
+  const rPois = Math.min(gearTotal("Resist Poison"), 70);
+  const rEnrg = Math.min(gearTotal("Resist Energy"), 70);
+  const rc = v => v >= 70 ? 'resist-capped' : 'resist-low';
+  const sv = (label, val) => `<td><span class="stat-label">${label}</span><span class="stat-value">${val}</span></td>`;
+  const rv = (label, val) => `<td><span class="stat-label">${label}</span><span class="resist-value ${rc(val)}">${val}/70</span></td>`;
+
+  html += `<div style="display:flex;gap:12px;justify-content:center;margin:8px 0;flex-wrap:wrap">
+    <div class="deed-item">
+      <input type="checkbox" id="buff_prot" ${state.buffs.protection?'checked':''}
+        onchange="state.buffs.protection=this.checked; renderSummary(); autoSave()">
+      <label for="buff_prot">Protection</label>
+      <span class="unequip-hint" title="-15% Physical Resistance">[?]</span>
+    </div>
+    <div class="deed-item">
+      <input type="checkbox" id="buff_vamp" ${state.buffs.vampiricEmbrace?'checked':''}
+        onchange="state.buffs.vampiricEmbrace=this.checked; renderSummary(); autoSave()">
+      <label for="buff_vamp">Vampiric Embrace</label>
+      <span class="unequip-hint" title="+15 Stamina Regen, +3 Mana Regen, -25% Fire Resistance">[?]</span>
+    </div>
+  </div>`;
+
+  html += `<table class="char-status">
+    <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Physical Resist', rPhys)}</tr>
+    <tr>${sv('Strength', totalStr)}${sv('Hit Points', hp)}<td class="empty"></td>${rv('Fire Resist', rFire)}</tr>
+    <tr>${sv('Dexterity', totalDex)}${sv('Stamina', stam)}${sv('Luck', luck)}${rv('Cold Resist', rCold)}</tr>
+    <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}<td class="empty"></td>${rv('Poison Resist', rPois)}</tr>
+    <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Energy Resist', rEnrg)}</tr>
+  </table>`;
+
   const colCount = 2 + SLOTS.length;
   html += `<table class="summary-table"><thead><tr>
     <th class="s-attr">Attribute</th>
@@ -1571,6 +1648,7 @@ function loadFromStorage() {
       state.savedWeapons = loaded.savedWeapons || [];
       state.savedClothing = loaded.savedClothing || [];
       state.baseStats = loaded.baseStats || { str: 0, dex: 0, int: 0 };
+      state.buffs = loaded.buffs || { protection: false, vampiricEmbrace: false };
       state.shoppingOpen = loaded.shoppingOpen || false;
       state.purchased = loaded.purchased || {};
       if (loaded.slots) {
