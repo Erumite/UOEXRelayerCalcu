@@ -1236,10 +1236,13 @@ function renderSummary() {
   if (state.buffs.angelicFaith) { totalStr += 20; totalDex += 20; totalInt += 20; }
   if (state.buffs.strengthSpell) { totalStr += 11; }
   if (state.buffs.greaterStrPotion) { totalStr += Math.floor(20 * (1 + enhPot / 100)); }
+  const blessStr = Math.floor(totalStr * 0.11);
+  const blessDex = Math.floor(totalDex * 0.11);
+  const blessInt = Math.floor(totalInt * 0.11);
   if (state.buffs.bless) {
-    totalStr += Math.floor(totalStr * 0.11);
-    totalDex += Math.floor(totalDex * 0.11);
-    totalInt += Math.floor(totalInt * 0.11);
+    totalStr += blessStr;
+    totalDex += blessDex;
+    totalInt += blessInt;
   }
 
   const hp = Math.floor(bStr / 2 + 50 + (totalStr - bStr) * 1.5 + gHits);
@@ -1288,7 +1291,7 @@ function renderSummary() {
     <div class="deed-item">
       <input type="checkbox" id="buff_bless" data-buff="bless" ${state.buffs.bless?'checked':''} ${bc}>
       <label for="buff_bless">Bless</label>
-      <span class="unequip-hint" title="+11% to STR/DEX/INT (at 100 Evaluate Intelligence). Applied after other stat buffs.">[?]</span>
+      <span class="unequip-hint" title="+11% to STR/DEX/INT (at 100 Eval Int). Currently: +${blessStr} STR, +${blessDex} DEX, +${blessInt} INT. Applied after other stat buffs.">[?]</span>
     </div>
     <div class="deed-item">
       <input type="checkbox" id="buff_strpot" data-buff="greaterStrPotion" ${state.buffs.greaterStrPotion?'checked':''} ${bc}>
