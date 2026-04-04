@@ -500,8 +500,13 @@ const PRESET_WEAPONS = {
     stats:{"Luck":200,"Faster Casting":1},
     note:"Saves on Luck Deeds + expensive Faster Casting."
   },
-  "Blaze of Death": {
+  "Ancient Yumi": {
     type:"artifact", artiTagged:false, slotType:"weapon",
+    stats:{"Damage Increase":50,"Hit Life Leech":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58},
+    note:"Strong base DI + leeches and Hit Lightning. Not arti-tagged."
+  },
+  "Blaze of Death": {
+    type:"artifact", artiTagged:false, slotType:"both",
     stats:{"Damage Increase":35,"Hit Fire Area":50,"Hit Fireball":50,"Swing Speed Increase":25,"Resist Fire":10},
     note:"Strong base DI/SSI + Hit Fire Area + Hit Fireball. Not arti-tagged."
   },
@@ -1028,6 +1033,11 @@ function deleteSavedItem(name, isWeapon) {
   showToast(`Deleted "${name}"`);
 }
 
+const RECOMMENDED_ARMOR_ATTRS = new Set([
+  "Reflect Physical Damage","Spell Damage Increase","Enhance Potions",
+  "Bonus Strength","Bonus Hits","Bonus Dex"
+]);
+
 function renderAttrTable(i, s, info) {
   let html = `<table class="attr-table">
     <thead><tr>
@@ -1054,9 +1064,10 @@ function renderAttrTable(i, s, info) {
     const total = base + alloc;
     const effectiveCost = info.artiTagged ? attr.sp * 2 : attr.sp;
     const maxClass = total > attr.max ? 'over-max' : total === attr.max ? 'at-max' : '';
+    const isRec = !isWeaponSlot(i) && RECOMMENDED_ARMOR_ATTRS.has(attr.name);
 
     html += `<tr>
-      <td>${attr.name}</td>
+      <td>${isRec ? `<strong style="color:#e8dcc0" title="Recommended: always max this on armor relayers">${attr.name}</strong>` : attr.name}</td>
       <td class="sp-cost">${effectiveCost}</td>
       <td class="base-val">${base || '-'}</td>
       <td class="alloc-cell">
