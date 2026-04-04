@@ -263,6 +263,20 @@ input[type="number"].narrow { width: 55px; }
 .shopping-item .ed-cost { color: var(--gold-dim); margin-left: auto; white-space: nowrap; }
 .shopping-empty { color: var(--text-dim); font-size: 0.9em; font-style: italic; }
 
+/* Unequipped */
+.slot-tab.unequipped { opacity: 0.45; text-decoration: line-through; }
+.slot-tab.unequipped.active { opacity: 0.7; }
+.summary-table th.unequipped-col { opacity: 0.4; text-decoration: line-through; }
+.summary-table td.unequipped-col { opacity: 0.3; }
+.unequip-bar {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  padding: 8px 14px; background: var(--bg); border-radius: 6px;
+  border: 1px solid var(--border); font-size: 0.88em;
+}
+.unequip-bar input[type="checkbox"] { accent-color: var(--red); }
+.unequip-bar label { color: var(--text-dim); cursor: pointer; }
+.unequip-bar .unequip-hint { font-size: 0.8em; color: var(--text-dim); cursor: help; }
+
 /* Saved item edit */
 .edit-toggle {
   background: var(--bg3); border: 1px solid var(--border); color: var(--gold-dim);
@@ -564,6 +578,7 @@ function createEmptySlot() {
     useBestSkill: false,
     removeMageWeapon: false,
     useWeaponChangeDeed: false,
+    unequipped: false,
     allocations: allocs,
   };
 }
@@ -658,7 +673,8 @@ function renderTabs() {
     const s = state.slots[i];
     const configured = s.weaponChoice !== "none";
     const wepClass = isWeaponSlot(i) ? 'weapon-slot' : SLOTS[i] === 'Shield' ? 'shield-slot' : '';
-    return `<button class="slot-tab ${wepClass} ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
+    const unequipClass = s.unequipped ? 'unequipped' : '';
+    return `<button class="slot-tab ${wepClass} ${unequipClass} ${i === state.activeSlot ? 'active' : ''}" onclick="switchSlot(${i})">
       ${name}<span class="tab-dot ${configured ? 'configured' : ''}"></span>
     </button>`;
   }).join('');
@@ -731,6 +747,16 @@ function renderSlot() {
       ${NOTABLE_ITEMS[s.weaponChoice] ? `<div style="font-size:0.8em;color:var(--text-dim);margin-top:4px">${NOTABLE_ITEMS[s.weaponChoice].note}</div>` : ''}
     </div>
   </div>`;
+
+  // Unequip checkbox (armor + shield slots only)
+  if (!isWeaponSlot(i) && s.weaponChoice !== 'none') {
+    html += `<div class="unequip-bar">
+      <input type="checkbox" id="unequip_${i}" ${s.unequipped?'checked':''}
+        onchange="state.slots[${i}].unequipped=this.checked; renderTabs(); renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
+      <label for="unequip_${i}">Unequip this slot</label>
+      <span class="unequip-hint" title="Excludes this slot's stats from the Totals Summary. Use this to see what you would lose by removing this item.">[?]</span>
+    </div>`;
+  }
 
   // Custom weapon config
   if (s.weaponChoice === 'custom') {
@@ -1074,7 +1100,10 @@ function renderSummary() {
   html += `<table class="summary-table"><thead><tr>
     <th class="attr-name">Attribute</th>
     <th>Gear Cap</th>`;
-  SLOTS.forEach(name => { html += `<th>${name}</th>`; });
+  SLOTS.forEach((name, si) => {
+    const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
+    html += `<th class="${uc}">${name}</th>`;
+  });
   html += `<th style="background:var(--bg);color:var(--gold)">TOTAL</th></tr></thead><tbody>`;
 
   let lastCat = '';
@@ -1087,8 +1116,9 @@ function renderSummary() {
     html += `<tr><td class="attr-name">${attr.name}</td><td>${attr.cap !== null ? attr.cap : '-'}</td>`;
     SLOTS.forEach((_, si) => {
       const val = getSlotTotal(si, attr.name);
-      total += val;
-      html += `<td>${val || ''}</td>`;
+      const uc = state.slots[si].unequipped;
+      if (!uc) total += val;
+      html += `<td class="${uc ? 'unequipped-col' : ''}">${val || ''}</td>`;
     });
     // Add base stat if applicable
     const baseKey = BASE_STAT_MAP[attr.name];
@@ -1103,8 +1133,9 @@ function renderSummary() {
   html += `<tr><td class="attr-name">Luck</td><td>7200</td>`;
   SLOTS.forEach((_, si) => {
     const val = getSlotTotal(si, "Luck");
-    totalLuck += val;
-    html += `<td>${val || ''}</td>`;
+    const uc = state.slots[si].unequipped;
+    if (!uc) totalLuck += val;
+    html += `<td class="${uc ? 'unequipped-col' : ''}">${val || ''}</td>`;
   });
   html += `<td style="font-weight:bold">${totalLuck}</td></tr>`;
 
