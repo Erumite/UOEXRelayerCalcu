@@ -280,9 +280,73 @@ input[type="number"].narrow { width: 55px; }
   z-index: 100;
 }
 .toast.show { opacity: 1; }
+
+/* Help */
+.help-btn {
+  position: fixed; top: 12px; right: 16px; width: 32px; height: 32px;
+  border-radius: 50%; background: var(--bg3); border: 1px solid var(--gold-dim);
+  color: var(--gold); font-size: 1.1em; font-weight: bold; cursor: pointer;
+  z-index: 50; line-height: 30px; text-align: center;
+}
+.help-btn:hover { background: #1a4a7a; }
+.help-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 200; justify-content: center; align-items: center;
+}
+.help-overlay.open { display: flex; }
+.help-modal {
+  background: var(--bg2); border: 1px solid var(--gold-dim); border-radius: 8px;
+  padding: 24px 28px; max-width: 560px; width: 90%; max-height: 80vh;
+  overflow-y: auto; position: relative; color: var(--text); line-height: 1.6;
+}
+.help-modal h2 { margin-bottom: 12px; }
+.help-modal h3 { margin-top: 14px; margin-bottom: 2px; }
+.help-modal ul { padding-left: 18px; margin: 4px 0 8px; }
+.help-modal li { margin-bottom: 3px; font-size: 0.9em; }
+.help-modal .close-help {
+  position: absolute; top: 10px; right: 14px; background: none; border: none;
+  color: var(--text-dim); font-size: 1.4em; cursor: pointer;
+}
+.help-modal .close-help:hover { color: var(--text); }
 </style>
 </head>
 <body>
+
+<button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('open')" title="Help">?</button>
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-modal">
+    <button class="close-help" onclick="document.getElementById('helpOverlay').classList.remove('open')">&times;</button>
+    <h2>How to Use</h2>
+    <p>Plan your UO:EX relayer builds across all armor slots and your weapon.</p>
+    <h3>1. Select a Slot</h3>
+    <ul>
+      <li>Click a tab to configure that slot. The <strong style="color:var(--red)">Weapon</strong> tab is for your equipped weapon; the rest are armor slots.</li>
+      <li>A green dot on a tab means that slot is configured.</li>
+    </ul>
+    <h3>2. Choose a Weapon or Item</h3>
+    <ul>
+      <li><strong>Preset Weapons</strong> (Titan's Hammer, etc.) are artifact weapons with known base stats ready to level.</li>
+      <li><strong>Notable Items</strong> (Spirit of Totem, etc.) have fixed stats and no SP to spend, but you can apply Luck Deeds.</li>
+      <li><strong>Custom Weapon</strong> lets you input a looted/found weapon's base stats. Save it as a preset for reuse.</li>
+    </ul>
+    <h3>3. Configure Deeds & SP</h3>
+    <ul>
+      <li><strong>Leveling Deeds</strong> add bonus SP (first 9 give an extra level of SP each).</li>
+      <li><strong>Luck Deeds</strong> add +100 Luck each (capped at 400 total including base).</li>
+      <li>Arti-tagged weapons cost 2x SP per attribute. Check <strong>Weapon Change Deed</strong> to remove the tag (200 ED).</li>
+      <li>Allocate your SP across attributes. The bar shows remaining SP budget.</li>
+    </ul>
+    <h3>4. Track Totals & Shopping</h3>
+    <ul>
+      <li><strong>Totals Summary</strong> shows the sum of each attribute across all slots vs gear caps.</li>
+      <li><strong>Shopping List</strong> tallies all deeds needed with ED costs. Check them off as you purchase.</li>
+    </ul>
+    <h3>5. Save & Export</h3>
+    <ul>
+      <li>Changes auto-save to browser storage. Use <strong>Export/Import JSON</strong> to back up or share builds.</li>
+    </ul>
+  </div>
+</div>
 
 <div class="container">
   <h1>UO:EX Relayer Calculator <small>Plan your levelable weapon relayers across all armor slots</small></h1>
@@ -338,6 +402,11 @@ const ATTRIBUTES = [
   {name:"Hit Fireball",         cat:"Weapon Hits", sp:4, max:60, cap:null},
   {name:"Hit Lightning",        cat:"Weapon Hits", sp:4, max:60, cap:null},
   {name:"Hit Dispel",           cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Physical Area",    cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Fire Area",        cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Cold Area",        cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Poison Area",      cat:"Weapon Hits", sp:4, max:60, cap:null},
+  {name:"Hit Energy Area",      cat:"Weapon Hits", sp:4, max:60, cap:null},
   // Melee
   {name:"Defense Chance Increase", cat:"Melee", sp:3, max:50, cap:65},
   {name:"Hit Chance Increase",     cat:"Melee", sp:3, max:45, cap:45},
@@ -377,22 +446,27 @@ const CAT_CLASSES = {
 
 const PRESET_WEAPONS = {
   "Titan's Hammer": {
-    type:"artifact", artiTagged:true,
+    type:"artifact", artiTagged:true, slotType:"armor",
     stats:{"Bonus Strength":15,"Hit Chance Increase":15,"Damage Increase":50},
     note:"Most Strength. Arti-tagged (double SP cost, use Weapon Change Deed to remove)."
   },
   "Bone Crusher": {
-    type:"artifact", artiTagged:true,
+    type:"artifact", artiTagged:true, slotType:"armor",
     stats:{"Bonus Strength":10,"Damage Increase":75},
     note:"More strength than possible from leveling alone. Arti-tagged."
   },
   "Swords of Prosperity": {
-    type:"artifact", artiTagged:false,
+    type:"artifact", artiTagged:false, slotType:"armor",
     stats:{"Luck":200,"Faster Casting":1},
     note:"Saves on Luck Deeds + expensive Faster Casting."
   },
+  "Blaze of Death": {
+    type:"artifact", artiTagged:false, slotType:"weapon",
+    stats:{"Damage Increase":35,"Hit Fire Area":50,"Hit Fireball":50,"Swing Speed Increase":25,"Resist Fire":10},
+    note:"Strong base DI/SSI + Hit Fire Area + Hit Fireball. Not arti-tagged."
+  },
   "Cavorting Club": {
-    type:"artifact", artiTagged:true,
+    type:"artifact", artiTagged:true, slotType:"armor",
     stats:{"Swing Speed Increase":35,"Damage Increase":35,"Resist Fire":8,"Resist Cold":8,"Resist Poison":8,"Resist Energy":8},
     note:"Strong base SSI/DI + resists. Arti-tagged."
   },
@@ -400,19 +474,19 @@ const PRESET_WEAPONS = {
 
 const NOTABLE_ITEMS = {
   "Spirit of Totem": {
-    nativeSlot:"Head",
+    nativeSlot:"Head", slotType:"armor",
     stats:{"Bonus Strength":20,"Reflect Physical Damage":15,"Hit Chance Increase":15,
            "Resist Physical":20,"Resist Fire":3,"Resist Cold":8,"Resist Poison":4,"Resist Energy":4},
     note:"Fixed stats, no leveling. Native slot: Head."
   },
   "Hide of the Werewolf King": {
-    nativeSlot:"Head",
+    nativeSlot:"Head", slotType:"armor",
     stats:{"Bonus Hits":20,"Regen Hits":5,"Bonus Stamina":15,"Bonus Strength":10,
            "Resist Physical":22,"Resist Fire":-10,"Resist Cold":20},
     note:"Fixed stats, no leveling. Night Sight included. Native slot: Head."
   },
   "Jewel of Winter": {
-    nativeSlot:"Neck",
+    nativeSlot:"Neck", slotType:"armor",
     stats:{"Bonus Hits":20,"Bonus Int":8,"Lower Mana Cost":20,"Luck":100,
            "Regen Mana":5,"Reflect Physical Damage":20,"Regen Stamina":7,
            "Spell Damage Increase":30,"Bonus Stamina":20,"Bonus Strength":5,
@@ -420,13 +494,13 @@ const NOTABLE_ITEMS = {
     note:"Fixed stats, no leveling. Native slot: Neck."
   },
   "Black Belt": {
-    nativeSlot:"Belt",
+    nativeSlot:"Belt", slotType:"armor",
     stats:{"Defense Chance Increase":15,"Hit Chance Increase":15,"Bonus Hits":20,
            "Luck":250,"Bonus Mana":20,"Reflect Physical Damage":10,"Bonus Stamina":20,"Bonus Strength":5},
     note:"Fixed stats, no leveling. Native slot: Belt."
   },
   "Cloak of Mist": {
-    nativeSlot:"Cloak",
+    nativeSlot:"Cloak", slotType:"armor",
     stats:{"Damage Increase":15,"Bonus Dex":8,"Bonus Int":8,"Lower Reagent Cost":15,
            "Regen Stamina":1,"Spell Damage Increase":20,"Bonus Strength":12,
            "Resist Physical":10,"Resist Fire":10,"Resist Cold":10,"Resist Poison":10,"Resist Energy":10},
@@ -494,9 +568,14 @@ function getWeaponInfo(slot) {
     }
   }
 
-  // Weapon Change Deed removes arti tag
-  if (result.rawArtiTagged && s.useWeaponChangeDeed) {
-    result.artiTagged = false;
+  result.rawType = result.type;
+  // Weapon Change Deed removes arti tag and upgrades crafted to normal
+  if (s.useWeaponChangeDeed) {
+    if (result.rawArtiTagged) result.artiTagged = false;
+    if (result.type === 'crafted') {
+      result.type = 'artifact';
+      result.spPerLevel = 5;
+    }
   }
   return result;
 }
@@ -511,7 +590,7 @@ function getTotalSP(slot) {
   const info = getWeaponInfo(slot);
   if (info.isNotable || !info.type) return 0;
   const deeds = state.slots[slot].levelingDeeds;
-  return (100 + Math.min(deeds, 9)) * info.spPerLevel;
+  return (99 + Math.min(deeds, 9)) * info.spPerLevel;
 }
 
 function getSpentSP(slot) {
@@ -570,12 +649,18 @@ function renderSlot() {
       <select onchange="changeWeapon(${i}, this.value)" id="weaponSelect">
         <option value="none" ${s.weaponChoice==='none'?'selected':''}>-- None --</option>
         <optgroup label="Preset Weapons (Levelable)">
-          ${Object.keys(PRESET_WEAPONS).map(n =>
+          ${Object.entries(PRESET_WEAPONS).filter(([,pw]) => {
+            const st = pw.slotType || 'both';
+            return st === 'both' || (isWeaponSlot(i) ? st === 'weapon' : st === 'armor');
+          }).map(([n]) =>
             `<option value="${n}" ${s.weaponChoice===n?'selected':''}>${n}</option>`
           ).join('')}
         </optgroup>
         <optgroup label="Notable Items (Fixed Stats)">
-          ${Object.keys(NOTABLE_ITEMS).map(n =>
+          ${Object.entries(NOTABLE_ITEMS).filter(([,ni]) => {
+            const st = ni.slotType || 'both';
+            return st === 'both' || (isWeaponSlot(i) ? st === 'weapon' : st === 'armor');
+          }).map(([n]) =>
             `<option value="${n}" ${s.weaponChoice===n?'selected':''}>${n}</option>`
           ).join('')}
         </optgroup>
@@ -591,14 +676,15 @@ function renderSlot() {
     </div>
     <div class="config-group">
       ${info.type && !info.isNotable ? `
-        <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Artifact (5 SP/lvl)'}</strong>
+        <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Normal (5 SP/lvl)'}</strong>
         ${info.rawArtiTagged ? (info.artiTagged
           ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
-          : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}</label>
-        ${info.rawArtiTagged ? `<div class="deed-item" style="margin-top:4px">
+          : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}
+        ${info.rawType === 'crafted' && s.useWeaponChangeDeed ? ' <span style="color:var(--green)">[Upgraded to Normal via Deed]</span>' : ''}</label>
+        ${info.rawArtiTagged || info.rawType === 'crafted' ? `<div class="deed-item" style="margin-top:4px">
           <input type="checkbox" id="wcd_${i}" ${s.useWeaponChangeDeed?'checked':''}
             onchange="state.slots[${i}].useWeaponChangeDeed=this.checked; renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
-          <label for="wcd_${i}">Use Weapon Change Deed to remove Arti Tag (200 ED)</label>
+          <label for="wcd_${i}">Use Weapon Change Deed (200 ED)${info.rawArtiTagged ? ' — remove Arti Tag' : ''}${info.rawType === 'crafted' ? ' — upgrade to Normal (5 SP/lvl)' : ''}</label>
         </div>` : ''}
       ` : ''}
       ${info.isNotable ? `<label style="color:var(--gold)">Fixed-stat item (no leveling)</label>` : ''}
@@ -698,7 +784,7 @@ function renderCustomWeaponSection(i, s) {
       <div class="config-group">
         <label>Type</label>
         <select onchange="state.slots[${i}].customType=this.value; renderSlot(); autoSave()">
-          <option value="artifact" ${s.customType==='artifact'?'selected':''}>Artifact (5 SP/lvl)</option>
+          <option value="artifact" ${s.customType==='artifact'?'selected':''}>Normal (5 SP/lvl)</option>
           <option value="crafted" ${s.customType==='crafted'?'selected':''}>Crafted (3 SP/lvl)</option>
         </select>
       </div>
@@ -740,8 +826,9 @@ function renderAttrTable(i, s, info) {
 
   let lastCat = '';
   ATTRIBUTES.forEach(attr => {
-    // Hide Weapon Hits on armor slots
+    // Hide Weapon Hits on armor slots; hide Melee, Magic, Resistances on weapon slot
     if (attr.cat === "Weapon Hits" && !isWeaponSlot(i)) return;
+    if (isWeaponSlot(i) && (attr.cat === "Melee" || attr.cat === "Magic" || attr.cat === "Resistances")) return;
 
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
@@ -1007,9 +1094,10 @@ function getShoppingItems() {
     if (s.removeMageWeapon) {
       items.push({ key: `${si}-removemage`, slot: slotName, weapon: weaponLabel, label: 'Remove Mage Weapon Deed', ed: 50 });
     }
-    // Weapon Change Deed (if user opted to remove arti tag)
-    if (s.useWeaponChangeDeed && info.rawArtiTagged) {
-      items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: 'Weapon Change Deed (remove Arti Tag)', ed: 200 });
+    // Weapon Change Deed (if user opted to remove arti tag or upgrade crafted)
+    if (s.useWeaponChangeDeed && (info.rawArtiTagged || info.rawType === 'crafted')) {
+      const reason = info.rawArtiTagged ? 'remove Arti Tag' : 'upgrade Crafted to Normal';
+      items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: `Weapon Change Deed (${reason})`, ed: 200 });
     }
   });
   return items;
