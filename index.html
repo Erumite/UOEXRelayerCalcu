@@ -232,6 +232,10 @@ input[type="number"].narrow { width: 55px; }
 .attr-bar-alloc { height: 100%; background: var(--green); }
 .attr-bar-over { height: 100%; background: #30b5b5; }
 .sp-cost-label { color: var(--text-dim); font-size: 0.82em; margin-right: 2px; }
+.attr-table td.cap-diff { width: 1%; white-space: nowrap; font-weight: bold; font-size: 0.85em; padding: 2px 6px; }
+.cap-diff.under { color: #d4c44c; }
+.cap-diff.at { color: var(--green); }
+.cap-diff.over { color: var(--red); }
 .attr-table input[type="number"] { width: 50px; text-align: center; padding: 3px 4px; }
 
 /* Notable item display */
@@ -1126,6 +1130,7 @@ function renderAttrTable(i, s, info) {
       <th class="alloc-header">Allocated</th>
       <th class="attr-header">Attribute</th>
       <th>Progress</th>
+      <th style="width:1%;white-space:nowrap">Cap</th>
     </tr></thead><tbody>`;
 
   let lastCat = '';
@@ -1139,7 +1144,7 @@ function renderAttrTable(i, s, info) {
 
     if (attr.cat !== lastCat) {
       lastCat = attr.cat;
-      html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="3">${attr.cat}</td></tr>`;
+      html += `<tr class="cat-row ${CAT_CLASSES[attr.cat]}"><td colspan="4">${attr.cat}</td></tr>`;
     }
     const base = info.stats[attr.name] || 0;
     const alloc = s.allocations[attr.name] || 0;
@@ -1171,8 +1176,22 @@ function renderAttrTable(i, s, info) {
           ${alloc > 0 ? `<div class="attr-bar-alloc" style="width:${allocPct}%"></div>` : ''}
           ${overPct > 0 ? `<div class="attr-bar-over" style="width:${overPct}%"></div>` : ''}
         </div>
-      </td>
-    </tr>`;
+      </td>`;
+    // Cap diff column
+    if (attr.cap !== null) {
+      let gearTotal = 0;
+      SLOTS.forEach((_, si) => {
+        if (!state.slots[si].unequipped) gearTotal += getSlotTotal(si, attr.name);
+      });
+      const baseKey = BASE_STAT_MAP[attr.name];
+      if (baseKey) gearTotal += state.baseStats[baseKey];
+      const diff = gearTotal - attr.cap;
+      const cls = diff > 0 ? 'over' : diff === 0 ? 'at' : 'under';
+      html += `<td class="cap-diff ${cls}">${diff > 0 ? '+' : ''}${diff}</td>`;
+    } else {
+      html += `<td class="cap-diff"></td>`;
+    }
+    html += `</tr>`;
   });
 
   // Show Luck from base weapon + deeds (not SP-allocatable)
@@ -1184,7 +1203,7 @@ function renderAttrTable(i, s, info) {
     const luckDeedPct = Math.min((deedLuck / 400) * 100, 100 - luckBasePct);
     const luckClass = totalLuck > 400 ? 'over-max' : totalLuck === 400 ? 'at-max' : '';
     const luckText = baseLuck > 0 && deedLuck > 0 ? `${deedLuck}+${baseLuck}/400` : `${totalLuck}/400`;
-    html += `<tr class="cat-row" style="color:var(--gold)"><td colspan="3">Luck (from base + deeds only)</td></tr>
+    html += `<tr class="cat-row" style="color:var(--gold)"><td colspan="4">Luck (from base + deeds only)</td></tr>
     <tr>
       <td class="alloc-cell" style="color:var(--text-dim);font-size:0.85em">${baseLuck > 0 ? `Base: ${baseLuck}` : ''} ${deedLuck > 0 ? `Deeds: +${deedLuck}` : ''}</td>
       <td class="attr-name-cell">Luck</td>
@@ -1195,6 +1214,7 @@ function renderAttrTable(i, s, info) {
           ${deedLuck > 0 ? `<div class="attr-bar-alloc" style="width:${luckDeedPct}%"></div>` : ''}
         </div>
       </td>
+      <td class="cap-diff"></td>
     </tr>`;
   }
 
