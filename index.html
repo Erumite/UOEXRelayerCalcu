@@ -431,33 +431,39 @@ input[type="number"].narrow { width: 55px; }
   <div class="help-modal">
     <button class="close-help" onclick="document.getElementById('helpOverlay').classList.remove('open')">&times;</button>
     <h2>How to Use</h2>
-    <p>Plan your UO:EX relayer builds across all armor slots and your weapon.</p>
+    <p>Plan your UO:EX relayer builds across all equipment slots.</p>
     <h3>1. Select a Slot</h3>
     <ul>
-      <li>Click a tab to configure that slot. The <strong style="color:var(--red)">Weapon</strong> tab is for your equipped weapon; the rest are armor slots.</li>
-      <li>A green dot on a tab means that slot is configured.</li>
+      <li><strong style="color:var(--red)">Weapon</strong> and <strong style="color:#5080d0">Shield</strong> tabs are colored differently. The rest are armor slots.</li>
+      <li>A green dot means the slot is configured. Strikethrough means unequipped.</li>
     </ul>
     <h3>2. Choose a Weapon or Item</h3>
     <ul>
-      <li><strong>Preset Weapons</strong> (Titan's Hammer, etc.) are artifact weapons with known base stats ready to level.</li>
-      <li><strong>Notable Items</strong> (Spirit of Totem, etc.) have fixed stats and no SP to spend, but you can apply Luck Deeds.</li>
-      <li><strong>Custom Weapon</strong> lets you input a looted/found weapon's base stats. Save it as a preset for reuse.</li>
+      <li><strong>Preset Weapons</strong> &mdash; known weapons with base stats, filtered by slot type.</li>
+      <li><strong>Notable Items</strong> &mdash; fixed-stat items (no leveling). Luck Deeds still apply.</li>
+      <li><strong>Custom Weapon / Clothing</strong> &mdash; input any stats, save as reusable presets. Use Edit/Delete to modify saved items.</li>
     </ul>
-    <h3>3. Configure Deeds & SP</h3>
+    <h3>3. Deeds & SP</h3>
     <ul>
-      <li><strong>Leveling Deeds</strong> add bonus SP (first 9 give an extra level of SP each).</li>
-      <li><strong>Luck Deeds</strong> add +100 Luck each (capped at 400 total including base).</li>
-      <li>Arti-tagged weapons cost 2x SP per attribute. Check <strong>Weapon Change Deed</strong> to remove the tag (200 ED).</li>
-      <li>Allocate your SP across attributes. The bar shows remaining SP budget.</li>
+      <li><strong>Leveling Deeds</strong> (up to 10) add bonus SP per deed.</li>
+      <li><strong>Weapon Change Deed</strong> removes Arti-Tag (2x cost) or upgrades Crafted to Normal (5 SP/lvl).</li>
+      <li>Use <strong>0 / - / + / MAX</strong> buttons to allocate SP. The <strong>Cap</strong> column shows distance from gear cap.</li>
+      <li>Bold attributes on armor are recommended to always max.</li>
     </ul>
-    <h3>4. Track Totals & Shopping</h3>
+    <h3>4. Totals Summary</h3>
     <ul>
-      <li><strong>Totals Summary</strong> shows the sum of each attribute across all slots vs gear caps.</li>
-      <li><strong>Shopping List</strong> tallies all deeds needed with ED costs. Check them off as you purchase.</li>
+      <li><strong>Base Stats</strong> &mdash; enter your naked STR/DEX/INT and stat cap.</li>
+      <li><strong>Character Status</strong> &mdash; shows calculated HP/Stam/Mana, resists (capped at 70), and Luck.</li>
+      <li><strong>Buffs</strong> &mdash; toggle spells/effects (Protection, Bless, Vampiric Embrace, Angelic Faith, potions) to see their impact.</li>
+      <li><strong>Unequip</strong> &mdash; toggle slots to see what you'd lose. Click column headers in the summary table to toggle.</li>
     </ul>
-    <h3>5. Save & Export</h3>
+    <h3>5. Shopping List</h3>
     <ul>
-      <li>Changes auto-save to browser storage. Use <strong>Export/Import JSON</strong> to back up or share builds.</li>
+      <li>Tallies all deeds (Relayer, Leveling, Luck, etc.) with ED costs. Check them off as purchased.</li>
+    </ul>
+    <h3>6. Save & Export</h3>
+    <ul>
+      <li>Auto-saves to browser storage. Use <strong>Export/Import JSON</strong> to back up or share builds.</li>
     </ul>
   </div>
 </div>
