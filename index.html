@@ -1177,15 +1177,21 @@ function renderAttrTable(i, s, info) {
           ${overPct > 0 ? `<div class="attr-bar-over" style="width:${overPct}%"></div>` : ''}
         </div>
       </td>`;
-    // Cap diff column
-    if (attr.cap !== null) {
+    // Cap diff column - use dynamic resist caps
+    let attrCap = attr.cap;
+    if (attr.cat === "Resistances") {
+      attrCap = 70;
+      if (attr.name === "Resist Physical" && state.buffs.protection) attrCap += 9;
+      if (attr.name === "Resist Fire" && state.buffs.vampiricEmbrace) attrCap += 25;
+    }
+    if (attrCap !== null) {
       let gearTotal = 0;
       SLOTS.forEach((_, si) => {
         if (!state.slots[si].unequipped) gearTotal += getSlotTotal(si, attr.name);
       });
       const baseKey = BASE_STAT_MAP[attr.name];
       if (baseKey) gearTotal += state.baseStats[baseKey];
-      const diff = gearTotal - attr.cap;
+      const diff = gearTotal - attrCap;
       const cls = diff > 0 ? 'over' : diff === 0 ? 'at' : 'under';
       html += `<td class="cap-diff ${cls}">${diff > 0 ? '+' : ''}${diff}</td>`;
     } else {
