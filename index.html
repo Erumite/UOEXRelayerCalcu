@@ -1391,14 +1391,22 @@ function renderSummary() {
     const baseKey = BASE_STAT_MAP[attr.name];
     if (baseKey) total += state.baseStats[baseKey];
 
+    // Dynamic resist caps (70 base, adjusted by buffs)
+    let effectiveCap = attr.cap;
+    if (attr.cat === "Resistances") {
+      effectiveCap = 70;
+      if (attr.name === "Resist Physical" && state.buffs.protection) effectiveCap += 9;
+      if (attr.name === "Resist Fire" && state.buffs.vampiricEmbrace) effectiveCap += 25;
+    }
+
     html += `<tr><td class="s-attr">${attr.name}</td>`;
-    if (attr.cap !== null) {
-      const fillPct = attr.cap > 0 ? Math.min((total / attr.cap) * 100, 100) : 0;
-      const overPct = total > attr.cap ? Math.min(((total - attr.cap) / attr.cap) * 100, 10) : 0;
-      const textClass = total > attr.cap ? 'over-cap' : total === attr.cap ? 'at-cap' : '';
+    if (effectiveCap !== null) {
+      const fillPct = effectiveCap > 0 ? Math.min((total / effectiveCap) * 100, 100) : 0;
+      const overPct = total > effectiveCap ? Math.min(((total - effectiveCap) / effectiveCap) * 100, 10) : 0;
+      const textClass = total > effectiveCap ? 'over-cap' : total === effectiveCap ? 'at-cap' : '';
       const baseNote = baseKey ? ` <span style="font-size:0.8em;color:var(--text-dim)">(${state.baseStats[baseKey]} base)</span>` : '';
       html += `<td class="s-progress">
-        <div class="s-text ${textClass}">${total}/${attr.cap}${baseNote}</div>
+        <div class="s-text ${textClass}">${total}/${effectiveCap}${baseNote}</div>
         <div class="s-bar">
           <div class="s-bar-fill" style="width:${fillPct}%"></div>
           ${overPct > 0 ? `<div class="s-bar-over" style="width:${overPct}%"></div>` : ''}
@@ -1424,7 +1432,7 @@ function renderSummary() {
     luckVals.push(val);
     if (!state.slots[si].unequipped) totalLuck += val;
   });
-  const luckCap = 7200;
+  const luckCap = 7600;
   const luckFillPct = Math.min((totalLuck / luckCap) * 100, 100);
   const luckOverPct = totalLuck > luckCap ? Math.min(((totalLuck - luckCap) / luckCap) * 100, 10) : 0;
   const luckTextClass = totalLuck > luckCap ? 'over-cap' : totalLuck === luckCap ? 'at-cap' : '';
