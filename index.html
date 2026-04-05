@@ -386,6 +386,16 @@ input[type="number"].narrow { width: 55px; }
   background: #1a3060; border-color: #5080d0; color: #5080d0;
 }
 
+/* Save Profiles */
+.profiles-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 12px; padding: 10px 14px; background: var(--bg2);
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.profiles-bar label { color: var(--text-dim); font-size: 0.88em; white-space: nowrap; }
+.profiles-bar select { min-width: 150px; }
+.profiles-bar .profile-name-input { width: 140px; }
+
 /* Toast notification */
 .toast {
   position: fixed; bottom: 20px; right: 20px; padding: 10px 20px;
@@ -483,6 +493,8 @@ input[type="number"].narrow { width: 55px; }
 
   <div class="slot-tabs" id="slotTabs"></div>
   <div class="slot-content" id="slotContent"></div>
+
+  <div class="profiles-bar" id="profilesBar"></div>
 
   <div class="actions">
     <button class="btn btn-primary" onclick="saveToStorage()">Save All</button>
@@ -1793,6 +1805,138 @@ function togglePurchased(key, checked) {
 
 // ===== PERSISTENCE =====
 const STORAGE_KEY = 'uoex_relayer_calc';
+const PROFILES_KEY = 'uoex_relayer_profiles';
+let currentProfile = 'Default';
+
+function getProfileKey(name) {
+  return name === 'Default' ? STORAGE_KEY : `${STORAGE_KEY}_${name}`;
+}
+
+function getProfiles() {
+  try {
+    return JSON.parse(localStorage.getItem(PROFILES_KEY)) || ['Default'];
+  } catch(e) { return ['Default']; }
+}
+
+function saveProfiles(profiles) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+}
+
+function renderProfiles() {
+  const profiles = getProfiles();
+  const container = document.getElementById('profilesBar');
+  container.innerHTML = `
+    <label>Profile:</label>
+    <select onchange="switchProfile(this.value)">
+      ${profiles.map(p => `<option value="${p}" ${p === currentProfile ? 'selected' : ''}>${p}</option>`).join('')}
+    </select>
+    <input type="text" class="profile-name-input" id="newProfileName" placeholder="New profile name...">
+    <button class="btn btn-primary" onclick="createProfile()">New</button>
+    <button class="btn btn-secondary" onclick="renameProfile()">Rename</button>
+    <button class="btn btn-secondary" onclick="copyProfile()">Copy</button>
+    <button class="btn btn-danger" onclick="deleteProfile()">Delete</button>
+  `;
+}
+
+function switchProfile(name, skipSave) {
+  if (!skipSave) autoSave(); // save current before switching
+  currentProfile = name;
+  // Reset state to defaults then load
+  state.slots = SLOTS.map(() => createEmptySlot());
+  state.savedWeapons = [];
+  state.savedClothing = [];
+  state.summaryOpen = false;
+  state.shoppingOpen = false;
+  state.purchased = {};
+  state.editingSavedItem = false;
+  state.baseStats = { str: 0, dex: 0, int: 0, statCap: 300 };
+  state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false };
+  state.activeSlot = 0;
+  loadFromStorage();
+  renderAll();
+  renderProfiles();
+  // Restore panel states
+  document.getElementById('summaryPanel').style.display = state.summaryOpen ? '' : 'none';
+  document.getElementById('summaryToggle').textContent = state.summaryOpen ? 'Totals Summary (click to collapse)' : 'Totals Summary (click to expand)';
+  document.getElementById('shoppingPanel').style.display = state.shoppingOpen ? '' : 'none';
+  document.getElementById('shoppingToggle').textContent = state.shoppingOpen ? 'Shopping List (click to collapse)' : 'Shopping List (click to expand)';
+  showToast(`Switched to "${name}"`);
+}
+
+function createProfile() {
+  const name = document.getElementById('newProfileName').value.trim();
+  if (!name) { showToast('Enter a profile name'); return; }
+  const profiles = getProfiles();
+  if (profiles.includes(name)) { showToast('Profile already exists'); return; }
+  autoSave(); // save current first
+  profiles.push(name);
+  saveProfiles(profiles);
+  // Start new profile with fresh state
+  currentProfile = name;
+  state.slots = SLOTS.map(() => createEmptySlot());
+  state.savedWeapons = [];
+  state.savedClothing = [];
+  state.summaryOpen = false;
+  state.shoppingOpen = false;
+  state.purchased = {};
+  state.editingSavedItem = false;
+  state.baseStats = { str: 0, dex: 0, int: 0, statCap: 300 };
+  state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false };
+  state.activeSlot = 0;
+  autoSave();
+  renderAll();
+  renderProfiles();
+  document.getElementById('summaryPanel').style.display = 'none';
+  document.getElementById('summaryToggle').textContent = 'Totals Summary (click to expand)';
+  document.getElementById('shoppingPanel').style.display = 'none';
+  document.getElementById('shoppingToggle').textContent = 'Shopping List (click to expand)';
+  showToast(`Created profile "${name}"`);
+}
+
+function renameProfile() {
+  const newName = document.getElementById('newProfileName').value.trim();
+  if (!newName) { showToast('Enter a new name'); return; }
+  if (currentProfile === 'Default') { showToast('Cannot rename Default profile'); return; }
+  const profiles = getProfiles();
+  if (profiles.includes(newName)) { showToast('Name already taken'); return; }
+  // Move storage data
+  const oldKey = getProfileKey(currentProfile);
+  const data = localStorage.getItem(oldKey);
+  localStorage.removeItem(oldKey);
+  const idx = profiles.indexOf(currentProfile);
+  profiles[idx] = newName;
+  saveProfiles(profiles);
+  currentProfile = newName;
+  localStorage.setItem(getProfileKey(newName), data);
+  renderProfiles();
+  showToast(`Renamed to "${newName}"`);
+}
+
+function copyProfile() {
+  const newName = document.getElementById('newProfileName').value.trim();
+  if (!newName) { showToast('Enter a name for the copy'); return; }
+  const profiles = getProfiles();
+  if (profiles.includes(newName)) { showToast('Name already taken'); return; }
+  autoSave(); // save current first
+  profiles.push(newName);
+  saveProfiles(profiles);
+  // Copy current data to new profile
+  const data = localStorage.getItem(getProfileKey(currentProfile));
+  localStorage.setItem(getProfileKey(newName), data);
+  currentProfile = newName;
+  renderProfiles();
+  showToast(`Copied to "${newName}"`);
+}
+
+function deleteProfile() {
+  if (currentProfile === 'Default') { showToast('Cannot delete Default profile'); return; }
+  if (!confirm(`Delete profile "${currentProfile}"?`)) return;
+  const profiles = getProfiles();
+  localStorage.removeItem(getProfileKey(currentProfile));
+  profiles.splice(profiles.indexOf(currentProfile), 1);
+  saveProfiles(profiles);
+  switchProfile('Default', true);
+}
 
 function stripDefaults(obj, defaultVal) {
   const out = {};
@@ -1824,7 +1968,7 @@ function compactState() {
 
 function autoSave() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(compactState()));
+    localStorage.setItem(getProfileKey(currentProfile), JSON.stringify(compactState()));
   } catch(e) { /* silent */ }
 }
 
@@ -1835,7 +1979,7 @@ function saveToStorage() {
 
 function loadFromStorage() {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(getProfileKey(currentProfile));
     if (data) {
       const loaded = JSON.parse(data);
       // Merge with defaults to handle new attributes
@@ -1882,16 +2026,31 @@ function importData(event) {
   reader.onload = (e) => {
     try {
       const loaded = JSON.parse(e.target.result);
-      state = loaded;
       // Ensure integrity
-      if (!state.slots || state.slots.length !== SLOTS.length) {
+      if (!loaded.slots) {
         showToast('Invalid file format');
         return;
       }
-      state.slots.forEach((s, i) => {
-        ATTRIBUTES.forEach(a => {
-          if (!(a.name in s.allocations)) s.allocations[a.name] = 0;
-        });
+      // Merge with defaults like loadFromStorage does
+      state.activeSlot = loaded.activeSlot || 0;
+      state.summaryOpen = loaded.summaryOpen || false;
+      state.savedWeapons = loaded.savedWeapons || [];
+      state.savedClothing = loaded.savedClothing || [];
+      state.baseStats = { str: 0, dex: 0, int: 0, statCap: 300, ...(loaded.baseStats || {}) };
+      state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false, ...(loaded.buffs || {}) };
+      state.shoppingOpen = loaded.shoppingOpen || false;
+      state.purchased = loaded.purchased || {};
+      state.editingSavedItem = false;
+      state.slots = SLOTS.map(() => createEmptySlot());
+      loaded.slots.forEach((ls, i) => {
+        if (i < SLOTS.length) {
+          const merged = createEmptySlot();
+          Object.assign(merged, ls);
+          ATTRIBUTES.forEach(a => {
+            if (!(a.name in merged.allocations)) merged.allocations[a.name] = 0;
+          });
+          state.slots[i] = merged;
+        }
       });
       renderAll();
       autoSave();
@@ -1931,6 +2090,7 @@ function renderAll() {
 // ===== INIT =====
 loadFromStorage();
 renderAll();
+renderProfiles();
 if (state.summaryOpen) {
   document.getElementById('summaryPanel').style.display = '';
   document.getElementById('summaryToggle').textContent = 'Totals Summary (click to collapse)';
