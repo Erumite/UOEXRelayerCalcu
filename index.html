@@ -1794,9 +1794,37 @@ function togglePurchased(key, checked) {
 // ===== PERSISTENCE =====
 const STORAGE_KEY = 'uoex_relayer_calc';
 
+function stripDefaults(obj, defaultVal) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== defaultVal) out[k] = v;
+  }
+  return out;
+}
+
+function compactState() {
+  const cs = JSON.parse(JSON.stringify(state));
+  cs.slots = cs.slots.map(s => {
+    s.allocations = stripDefaults(s.allocations, 0);
+    if (s.customStats) s.customStats = stripDefaults(s.customStats, 0);
+    for (const k of ['spellChanneling','selfRepair','useBestSkill','removeMageWeapon','mageArmor','useWeaponChangeDeed','unequipped','customArtiTagged']) {
+      if (s[k] === false) delete s[k];
+    }
+    if (s.levelingDeeds === 0) delete s.levelingDeeds;
+    if (s.luckDeeds === 0) delete s.luckDeeds;
+    if (s.customName === '') delete s.customName;
+    if (s.customType === 'artifact') delete s.customType;
+    return s;
+  });
+  cs.buffs = stripDefaults(cs.buffs, false);
+  cs.purchased = stripDefaults(cs.purchased, false);
+  if (cs.editingSavedItem === false) delete cs.editingSavedItem;
+  return cs;
+}
+
 function autoSave() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(compactState()));
   } catch(e) { /* silent */ }
 }
 
@@ -1837,7 +1865,7 @@ function loadFromStorage() {
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(compactState(), null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
