@@ -432,11 +432,68 @@ input[type="number"].narrow { width: 55px; }
   color: var(--text-dim); font-size: 1.4em; cursor: pointer;
 }
 .help-modal .close-help:hover { color: var(--text); }
+
+/* Info button */
+.info-btn {
+  position: fixed; top: 12px; right: 56px; width: 32px; height: 32px;
+  border-radius: 50%; background: var(--bg3); border: 1px solid var(--gold-dim);
+  color: var(--gold); font-size: 1.1em; font-weight: bold; cursor: pointer;
+  z-index: 50; line-height: 30px; text-align: center; font-style: italic;
+}
+.info-btn:hover { background: #1a4a7a; }
+.help-modal a { color: var(--gold); }
+.help-modal a:hover { text-decoration: none; }
+
+/* Prep button */
+.prep-btn {
+  background: #2a3a2a; color: var(--green); border: 1px solid var(--green);
+  padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.82em;
+  font-weight: bold; margin-left: 8px;
+}
+.prep-btn:hover { background: #3a5a3a; }
 </style>
 </head>
 <body>
 
+<button class="info-btn" onclick="document.getElementById('infoOverlay').classList.add('open')" title="Tips & Info">i</button>
 <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('open')" title="Help">?</button>
+
+<div class="help-overlay" id="infoOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="help-modal">
+    <button class="close-help" onclick="document.getElementById('infoOverlay').classList.remove('open')">&times;</button>
+    <h2>Tips &amp; Considerations</h2>
+
+    <h3>Relayer Wiki</h3>
+    <p style="font-size:0.9em">Full details on the <a href="https://www.uoex.net/wiki/Relayer" target="_blank" rel="noopener">Relayer Wiki Page</a>.</p>
+
+    <h3>Plan for Gear Swaps</h3>
+    <p style="font-size:0.9em">Keep critical stats off slots you may swap out. For example, <strong>Bracelets of Binding</strong> (wrist) are frequently equipped at champion spawns for teleportation &mdash; don&rsquo;t put stats there that you can&rsquo;t afford to lose.</p>
+
+    <h3>Buff Resist Penalties</h3>
+    <p style="font-size:0.9em"><strong>Protection</strong> and <strong>Vampiric Embrace</strong> reduce resistances. If you keep them active, plan extra resists to compensate. Toggling these buffs adjusts resist caps in the character sheet; the status bar caps at 70 (the actual in-game maximum).</p>
+
+    <h3>Physical Resist &amp; Reflect</h3>
+    <p style="font-size:0.9em">You may <em>not</em> want to max Physical Resistance &mdash; Reflect Physical Damage scales off the physical damage you take. More damage taken means more reflected. Just make sure you have the HP and healing to survive.</p>
+
+    <h3>Regen Diminishing Returns</h3>
+    <p style="font-size:0.9em">There is no hard cap on HP/Mana/Stamina regen, but returns diminish sharply beyond the configured cap. See the <a href="https://www.uoex.net/forum/viewtopic.php?f=1&t=4688" target="_blank" rel="noopener">diminishing returns thread</a> for details.</p>
+
+    <h3>Recommended on Every Relayer</h3>
+    <p style="font-size:0.9em;margin-bottom:4px">These attributes are worth maxing on every armor relayer (use the <strong>Prep</strong> button to set them all at once):</p>
+    <ul>
+      <li><strong>+8 STR</strong> (32 SP) &mdash; hit harder, more HP. No cap.</li>
+      <li><strong>+8 DEX</strong> (32 SP) &mdash; faster healing (<a href="https://www.uoex.net/wiki/Relayer" target="_blank" rel="noopener">see 220 dex</a>), more stamina. No cap.</li>
+      <li><strong>+8 INT</strong> (32 SP) &mdash; more mana, better spell success. No cap.</li>
+      <li><strong>+8 HP</strong> (24 SP) &mdash; survivability. No cap.</li>
+      <li><strong>+8 Stamina</strong> (24 SP) &mdash; sustain swing speed through leeches. No cap.</li>
+      <li><strong>+8 Mana</strong> (24 SP) &mdash; fuel weapon specials (Whirlwind, Double Strike). No cap.</li>
+      <li><strong>+15 Reflect Physical</strong> (45 SP) &mdash; bounces melee damage back. Powerful with 220 dex instaheal.</li>
+      <li><strong>+20 Spell Damage Increase</strong> (40 SP) &mdash; boosts weapon spell hits (most levelled weapons have several).</li>
+      <li><strong>+25 Enhance Potions</strong> (50 SP) &mdash; with stacked EP, potions can add ~100 HP/Stam/Mana.</li>
+    </ul>
+    <p style="font-size:0.85em;color:var(--text-dim);margin-top:6px">Total: 303 SP per slot (fits comfortably in a Normal weapon with a few Leveling Deeds).</p>
+  </div>
+</div>
 <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="help-modal">
     <button class="close-help" onclick="document.getElementById('helpOverlay').classList.remove('open')">&times;</button>
@@ -964,6 +1021,11 @@ function renderSlot() {
 
   // Attribute allocation table (for levelable weapons)
   if (info.type && !info.isNotable) {
+    html += `<div style="display:flex;align-items:center;margin:12px 0 4px">
+      <h3 style="margin:0">Attribute Allocation</h3>
+      <button class="prep-btn" onclick="prepSlot(${i})"
+        title="Set recommended attributes to max: +8 STR/DEX/INT/HP/Stam/Mana, +15 Reflect Physical, +20 SDI, +25 Enhance Potions">Prep</button>
+    </div>`;
     html += renderAttrTable(i, s, info);
   }
 
@@ -1139,7 +1201,7 @@ function deleteSavedItem(name, isWeapon) {
 
 const RECOMMENDED_ARMOR_ATTRS = new Set([
   "Reflect Physical Damage","Spell Damage Increase","Enhance Potions",
-  "Bonus Strength","Bonus Hits","Bonus Dex"
+  "Bonus Strength","Bonus Hits","Bonus Dex","Bonus Int","Bonus Stamina","Bonus Mana"
 ]);
 
 function renderAttrTable(i, s, info) {
@@ -1524,6 +1586,27 @@ function allocMax(slotIdx, attrName, maxAlloc, cost) {
   const canAfford = Math.floor(remaining / cost);
   const val = Math.min(maxAlloc, current + canAfford);
   updateAlloc(slotIdx, attrName, val, maxAlloc);
+}
+
+function prepSlot(slotIdx) {
+  const s = state.slots[slotIdx];
+  const info = getWeaponInfo(slotIdx);
+  const prepAttrs = {
+    "Bonus Strength": 8, "Bonus Dex": 8, "Bonus Int": 8,
+    "Bonus Hits": 8, "Bonus Stamina": 8, "Bonus Mana": 8,
+    "Reflect Physical Damage": 15, "Spell Damage Increase": 20,
+    "Enhance Potions": 25
+  };
+  for (const [name, target] of Object.entries(prepAttrs)) {
+    const attr = ATTRIBUTES.find(a => a.name === name);
+    if (!attr) continue;
+    const base = info.stats[name] || 0;
+    const maxAlloc = Math.max(0, attr.max - base);
+    s.allocations[name] = Math.min(target, maxAlloc);
+  }
+  renderSlot();
+  renderSummary();
+  autoSave();
 }
 
 function updateDeed(slotIdx, field, value) {
