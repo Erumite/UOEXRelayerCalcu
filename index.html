@@ -978,7 +978,7 @@ function renderSlot() {
         <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
           onchange="updateCheckDeed(${i},'selfRepair',this.checked)">
         <label for="sr_${i}">Self Repair 5</label>
-        ${!isWeaponSlot(i) ? `<span class="unequip-hint" title="Most weapon relayers on armor do not lose durability due to a long-standing bug. You usually don't need this deed on armor slots.">[?]</span>` : ''}
+        ${!isWeaponSlot(i) ? `<span class="unequip-hint" title="Weapon relayers onto armor don't lose durability due to a long-standing bug. This is only needed if you repair AFTER relayerin to armor - always repair the weapon first!">[?]</span>` : ''}
       </div>
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
