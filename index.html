@@ -1359,6 +1359,7 @@ function renderSummary() {
   const stam = totalDex + gStam;
   const mana = totalInt + gMana;
   const luck = gearTotal("Luck");
+  const maxWeight = Math.floor(totalStr * 3.5 + 40);
 
   // Apply resist buff modifiers
   const buffPhys = state.buffs.protection ? -9 : 0;
@@ -1398,7 +1399,7 @@ function renderSummary() {
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Physical Resist', rPhys)}</tr>
     <tr>${sv('Strength', totalStr)}${sv('Hit Points', hp)}${sv('Stat Cap', `${bStr+bDex+bInt}/${state.baseStats.statCap}`)}${rv('Fire Resist', rFire)}</tr>
     <tr>${sv('Dexterity', totalDex)}${sv('Stamina', stam)}${sv('Luck', luck)}${rv('Cold Resist', rCold)}</tr>
-    <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}<td class="empty"></td>${rv('Poison Resist', rPois)}</tr>
+    <tr>${sv('Intelligence', totalInt)}${sv('Mana', mana)}${sv('Max Weight', maxWeight)}${rv('Poison Resist', rPois)}</tr>
     <tr><td class="empty"></td><td class="empty"></td><td class="empty"></td>${rv('Energy Resist', rEnrg)}</tr>
   </table>
   <div class="weapon-hits-panel">
