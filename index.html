@@ -941,16 +941,15 @@ function renderSlot() {
   if (info.type && !info.isNotable) {
     html += `<div class="deeds-section">
       <div class="deed-item">
-        <label>Leveling Deeds (+10 Levels):</label>
+        <label title="+10 Levels Deed: (max 10, +${info.spPerLevel} SP each)">Level Deed</label>
         <input type="number" class="narrow" min="0" max="10" value="${s.levelingDeeds}"
           onchange="updateDeed(${i},'levelingDeeds',this.value)">
-        <span style="font-size:0.75em;color:var(--text-dim)">(max 10, +${info.spPerLevel} SP each)</span>
       </div>
       <div class="deed-item">
-        <label>Luck Deeds (+100):</label>
+        <label title="+100 Luck Deed - +400 max">Luck Deeds</label>
         <input type="number" class="narrow" min="0" max="${getMaxLuckDeeds(i)}" value="${s.luckDeeds}"
           onchange="updateDeed(${i},'luckDeeds',this.value)">
-        <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}, total ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
+        <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}: ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
       </div>
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="sc_${i}" ${s.spellChanneling?'checked':''}
@@ -961,8 +960,8 @@ function renderSlot() {
       <div class="deed-item">
         <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
           onchange="updateCheckDeed(${i},'selfRepair',this.checked)">
-        <label for="sr_${i}">Self Repair 5</label>
-        ${!isWeaponSlot(i) ? `<span class="unequip-hint" title="Weapon relayers onto armor don't lose durability due to a long-standing bug. This is only needed if you repair AFTER relayerin to armor - always repair the weapon first!">[?]</span>` : ''}
+        <label for="sr_${i}" title="Self Repair 5 Deed">SR5</label>
+        ${!isWeaponSlot(i) ? `<span class="unequip-hint" title="Self Repair 5 Deed - Weapon relayers onto armor don't lose durability due to a long-standing bug. This is only needed if you repair AFTER relayerin to armor - always repair the weapon first!">[?]</span>` : ''}
       </div>
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
@@ -973,8 +972,8 @@ function renderSlot() {
       <div class="deed-item">
         <input type="checkbox" id="rmw_${i}" ${s.removeMageWeapon?'checked':''}
           onchange="updateCheckDeed(${i},'removeMageWeapon',this.checked)">
-        <label for="rmw_${i}">Remove Mage Weapon</label>
-        <span class="unequip-hint" title="Only needed if the weapon has the 'Mage Weapon' attribute, which lowers your Magery skill when equipped.">[?]</span>
+        <label for="rmw_${i}">Fix Mage Malus</label>
+        <span class="unequip-hint" title=""Remove Mage Weapon Malus deed is only needed if the weapon has the 'Mage Weapon' attribute, which lowers your Magery skill when equipped.">[?]</span>
       </div>
       ${!isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ma_${i}" ${s.mageArmor?'checked':''}
@@ -982,19 +981,16 @@ function renderSlot() {
         <label for="ma_${i}">Mage Armor</label>
         <span class="unequip-hint" title="Relayered weapons onto armor are already considered medable. This is only useful on custom gear that is non-medable.">[?]</span>
       </div>` : ''}
-    </div>`;
-
-    html += `<div class="deeds-section" style="margin-top:-12px">
       <div class="deed-item">
         <input type="checkbox" id="iac_${i}" ${s.itemAppearanceChange?'checked':''}
           onchange="updateCheckDeed(${i},'itemAppearanceChange',this.checked)">
-        <label for="iac_${i}">Item Appearance Change</label>
+        <label for="iac_${i}">Appearance</label>
         <span class="unequip-hint" title="Changes the visual appearance of the item. 100 ED.">[?]</span>
       </div>
       <div class="deed-item">
         <input type="checkbox" id="rd_${i}" ${s.renameDeed?'checked':''}
           onchange="updateCheckDeed(${i},'renameDeed',this.checked); renderSlot()">
-        <label for="rd_${i}">Rename Deed</label>
+        <label for="rd_${i}">Rename</label>
         <span class="unequip-hint" title="Rename the item. 50 ED.">[?]</span>
         ${s.renameDeed ? `<input type="text" value="${s.renameText}" placeholder="New item name..."
           style="margin-left:4px;width:160px"
