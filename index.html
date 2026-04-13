@@ -743,6 +743,9 @@ function createEmptySlot() {
     removeMageWeapon: false,
     mageArmor: false,
     useWeaponChangeDeed: false,
+    itemAppearanceChange: false,
+    renameDeed: false,
+    renameText: '',
     unequipped: false,
     allocations: allocs,
   };
@@ -917,16 +920,6 @@ function renderSlot() {
     </div>
   </div>`;
 
-  // Unequip checkbox (armor + shield slots only)
-  if (!isWeaponSlot(i) && s.weaponChoice !== 'none') {
-    html += `<div class="unequip-bar">
-      <input type="checkbox" id="unequip_${i}" ${s.unequipped?'checked':''}
-        onchange="state.slots[${i}].unequipped=this.checked; renderTabs(); renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
-      <label for="unequip_${i}">Unequip this slot</label>
-      <span class="unequip-hint" title="Excludes this slot's stats from the Totals Summary. Use this to see what you would lose by removing this item.">[?]</span>
-    </div>`;
-  }
-
   // Custom weapon config
   if (s.weaponChoice === 'custom') {
     html += renderCustomWeaponSection(i, s);
@@ -944,17 +937,8 @@ function renderSlot() {
     html += renderSavedItemActions(i, s, isSavedWeapon);
   }
 
-  // SP Budget & Deeds (only for levelable weapons)
+  // Deeds & SP Budget (only for levelable weapons)
   if (info.type && !info.isNotable) {
-    const pct = totalSP > 0 ? Math.min((spentSP / totalSP) * 100, 100) : 0;
-    const barClass = remaining < 0 ? 'over' : pct > 85 ? 'warning' : '';
-    html += `<div class="sp-budget">
-      <div><span class="sp-label">Total SP:</span> <span class="sp-value">${totalSP}</span></div>
-      <div><span class="sp-label">Spent:</span> <span class="sp-value">${spentSP}</span></div>
-      <div><span class="sp-label">Remaining:</span> <span class="sp-remaining ${remaining < 0 ? 'negative' : ''}">${remaining}</span></div>
-      <div class="sp-bar"><div class="sp-bar-fill ${barClass}" style="width:${pct}%"></div></div>
-    </div>`;
-
     html += `<div class="deeds-section">
       <div class="deed-item">
         <label>Leveling Deeds (+10 Levels):</label>
@@ -999,6 +983,33 @@ function renderSlot() {
         <span class="unequip-hint" title="Relayered weapons onto armor are already considered medable. This is only useful on custom gear that is non-medable.">[?]</span>
       </div>` : ''}
     </div>`;
+
+    html += `<div class="deeds-section" style="margin-top:-12px">
+      <div class="deed-item">
+        <input type="checkbox" id="iac_${i}" ${s.itemAppearanceChange?'checked':''}
+          onchange="updateCheckDeed(${i},'itemAppearanceChange',this.checked)">
+        <label for="iac_${i}">Item Appearance Change</label>
+        <span class="unequip-hint" title="Changes the visual appearance of the item. 100 ED.">[?]</span>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="rd_${i}" ${s.renameDeed?'checked':''}
+          onchange="updateCheckDeed(${i},'renameDeed',this.checked); renderSlot()">
+        <label for="rd_${i}">Rename Deed</label>
+        <span class="unequip-hint" title="Rename the item. 50 ED.">[?]</span>
+        ${s.renameDeed ? `<input type="text" value="${s.renameText}" placeholder="New item name..."
+          style="margin-left:4px;width:160px"
+          onchange="state.slots[${i}].renameText=this.value; autoSave()">` : ''}
+      </div>
+    </div>`;
+
+    const pct = totalSP > 0 ? Math.min((spentSP / totalSP) * 100, 100) : 0;
+    const barClass = remaining < 0 ? 'over' : pct > 85 ? 'warning' : '';
+    html += `<div class="sp-budget">
+      <div><span class="sp-label">Total SP:</span> <span class="sp-value">${totalSP}</span></div>
+      <div><span class="sp-label">Spent:</span> <span class="sp-value">${spentSP}</span></div>
+      <div><span class="sp-label">Remaining:</span> <span class="sp-remaining ${remaining < 0 ? 'negative' : ''}">${remaining}</span></div>
+      <div class="sp-bar"><div class="sp-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+    </div>`;
   }
 
   // Notable item stats display
@@ -1015,6 +1026,21 @@ function renderSlot() {
         <input type="number" class="narrow" min="0" max="${getMaxLuckDeeds(i)}" value="${s.luckDeeds}"
           onchange="updateDeed(${i},'luckDeeds',this.value)">
         <span style="font-size:0.75em;color:var(--text-dim)">(max ${getMaxLuckDeeds(i)}, total ${(info.stats["Luck"]||0) + s.luckDeeds * 100}/400)</span>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="iac_${i}" ${s.itemAppearanceChange?'checked':''}
+          onchange="updateCheckDeed(${i},'itemAppearanceChange',this.checked)">
+        <label for="iac_${i}">Item Appearance Change</label>
+        <span class="unequip-hint" title="Changes the visual appearance of the item. 100 ED.">[?]</span>
+      </div>
+      <div class="deed-item">
+        <input type="checkbox" id="rd_${i}" ${s.renameDeed?'checked':''}
+          onchange="updateCheckDeed(${i},'renameDeed',this.checked); renderSlot()">
+        <label for="rd_${i}">Rename Deed</label>
+        <span class="unequip-hint" title="Rename the item. 50 ED.">[?]</span>
+        ${s.renameDeed ? `<input type="text" value="${s.renameText}" placeholder="New item name..."
+          style="margin-left:4px;width:160px"
+          onchange="state.slots[${i}].renameText=this.value; autoSave()">` : ''}
       </div>
     </div>`;
   }
@@ -1457,7 +1483,7 @@ function renderSummary() {
     <th class="s-progress">Total</th>`;
   SLOTS.forEach((name, si) => {
     const uc = state.slots[si].unequipped ? 'unequipped-col' : '';
-    html += `<th class="s-slot ${uc}" style="cursor:pointer" onclick="toggleUnequip(${si})" title="Click to toggle equip/unequip">${name}</th>`;
+    html += `<th class="s-slot ${uc}" style="cursor:pointer" onclick="toggleUnequip(${si})" title="Click to toggle equipped.">${name}</th>`;
   });
   html += `</tr></thead><tbody>`;
 
@@ -1561,6 +1587,9 @@ function changeWeapon(slotIdx, value) {
   s.useBestSkill = false;
   s.removeMageWeapon = false;
   s.useWeaponChangeDeed = false;
+  s.itemAppearanceChange = false;
+  s.renameDeed = false;
+  s.renameText = '';
   renderTabs();
   renderSlot();
   renderSummary();
@@ -1781,6 +1810,13 @@ function getShoppingItems() {
         items.push({ key: `${si}-luck-${d}`, slot: slotName, weapon: weaponLabel,
           label: `Luck Deed (+100) #${d + 1}`, ed: 100 });
       }
+      if (s.itemAppearanceChange) {
+        items.push({ key: `${si}-appearance`, slot: slotName, weapon: weaponLabel, label: 'Item Appearance Change', ed: 100 });
+      }
+      if (s.renameDeed) {
+        const renameLabel = s.renameText ? `Rename Deed ("${s.renameText}")` : 'Rename Deed';
+        items.push({ key: `${si}-rename`, slot: slotName, weapon: weaponLabel, label: renameLabel, ed: 50 });
+      }
       return;
     }
 
@@ -1828,6 +1864,15 @@ function getShoppingItems() {
     if (s.useWeaponChangeDeed && (info.rawArtiTagged || info.rawType === 'crafted')) {
       const reason = info.rawArtiTagged ? 'remove Arti Tag' : 'upgrade Crafted to Normal';
       items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: `Weapon Change Deed (${reason})`, ed: 200 });
+    }
+    // Item Appearance Change
+    if (s.itemAppearanceChange) {
+      items.push({ key: `${si}-appearance`, slot: slotName, weapon: weaponLabel, label: 'Item Appearance Change', ed: 100 });
+    }
+    // Rename Deed
+    if (s.renameDeed) {
+      const renameLabel = s.renameText ? `Rename Deed ("${s.renameText}")` : 'Rename Deed';
+      items.push({ key: `${si}-rename`, slot: slotName, weapon: weaponLabel, label: renameLabel, ed: 50 });
     }
   });
   return items;
@@ -2035,13 +2080,14 @@ function compactState() {
   cs.slots = cs.slots.map(s => {
     s.allocations = stripDefaults(s.allocations, 0);
     if (s.customStats) s.customStats = stripDefaults(s.customStats, 0);
-    for (const k of ['spellChanneling','selfRepair','useBestSkill','removeMageWeapon','mageArmor','useWeaponChangeDeed','unequipped','customArtiTagged']) {
+    for (const k of ['spellChanneling','selfRepair','useBestSkill','removeMageWeapon','mageArmor','useWeaponChangeDeed','itemAppearanceChange','renameDeed','unequipped','customArtiTagged']) {
       if (s[k] === false) delete s[k];
     }
     if (s.levelingDeeds === 0) delete s.levelingDeeds;
     if (s.luckDeeds === 0) delete s.luckDeeds;
     if (s.customName === '') delete s.customName;
     if (s.customType === 'artifact') delete s.customType;
+    if (s.renameText === '') delete s.renameText;
     return s;
   });
   cs.buffs = stripDefaults(cs.buffs, false);
