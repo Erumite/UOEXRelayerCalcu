@@ -513,7 +513,7 @@ input[type="number"].narrow { width: 55px; }
     <h3>3. Deeds & SP</h3>
     <ul>
       <li><strong>Leveling Deeds</strong> (up to 10) add bonus SP per deed.</li>
-      <li><strong>Weapon Change Deed</strong> removes Arti-Tag (2x cost) or upgrades Crafted to Normal (5 SP/lvl).</li>
+      <li><strong>Weapon Change Deed</strong> removes Arti-Tag (2x SP cost). <strong>Weapon Type Change Deed</strong> changes weapon abilities (weapon slot only).</li>
       <li>Use <strong>0 / - / + / MAX</strong> buttons to allocate SP. The <strong>Cap</strong> column shows distance from gear cap.</li>
       <li>Bold attributes on armor are recommended to always max.</li>
     </ul>
@@ -743,6 +743,7 @@ function createEmptySlot() {
     removeMageWeapon: false,
     mageArmor: false,
     useWeaponChangeDeed: false,
+    weaponTypeChange: false,
     itemAppearanceChange: false,
     renameDeed: false,
     renameText: '',
@@ -784,13 +785,9 @@ function getWeaponInfo(slot) {
   }
 
   result.rawType = result.type;
-  // Weapon Change Deed removes arti tag and upgrades crafted to normal
+  // Weapon Change Deed removes arti tag only
   if (s.useWeaponChangeDeed) {
     if (result.rawArtiTagged) result.artiTagged = false;
-    if (result.type === 'crafted') {
-      result.type = 'artifact';
-      result.spPerLevel = 5;
-    }
   }
   return result;
 }
@@ -906,11 +903,11 @@ function renderSlot() {
         ${info.rawArtiTagged ? (info.artiTagged
           ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
           : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}
-        ${info.rawType === 'crafted' && s.useWeaponChangeDeed ? ' <span style="color:var(--green)">[Upgraded to Normal via Deed]</span>' : ''}</label>
-        ${info.rawArtiTagged || info.rawType === 'crafted' ? `<div class="deed-item" style="margin-top:4px">
+        </label>
+        ${info.rawArtiTagged ? `<div class="deed-item" style="margin-top:4px">
           <input type="checkbox" id="wcd_${i}" ${s.useWeaponChangeDeed?'checked':''}
             onchange="state.slots[${i}].useWeaponChangeDeed=this.checked; renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
-          <label for="wcd_${i}">Use Weapon Change Deed (200 ED)${info.rawArtiTagged ? ' — remove Arti Tag' : ''}${info.rawType === 'crafted' ? ' — upgrade to Normal (5 SP/lvl)' : ''}</label>
+          <label for="wcd_${i}">Use Weapon Change Deed (200 ED) — remove Arti Tag</label>
         </div>` : ''}
       ` : ''}
       ${info.isNotable ? `<label style="color:var(--gold)">Fixed-stat item (no leveling)</label>` : ''}
@@ -954,8 +951,8 @@ function renderSlot() {
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="sc_${i}" ${s.spellChanneling?'checked':''}
           onchange="updateCheckDeed(${i},'spellChanneling',this.checked)">
-        <label for="sc_${i}">Spell Channeling</label>
-        <span class="unequip-hint" title="Allows casting Magery spells without unequipping the weapon.">[?]</span>
+        <label for="sc_${i}">Channeling</label>
+        <span class="unequip-hint" title="Spell Channeling - Allows casting Magery spells without unequipping the weapon.">[?]</span>
       </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="sr_${i}" ${s.selfRepair?'checked':''}
@@ -966,13 +963,19 @@ function renderSlot() {
       ${isWeaponSlot(i) ? `<div class="deed-item">
         <input type="checkbox" id="ubs_${i}" ${s.useBestSkill?'checked':''}
           onchange="updateCheckDeed(${i},'useBestSkill',this.checked)">
-        <label for="ubs_${i}">Use Best Skill</label>
-        <span class="unequip-hint" title="Causes the weapon to use your highest weapon skill for damage calculations. Most useful with the Angelic Faith transformation, which gives a bonus to Mace Fighting skill.">[?]</span>
+        <label for="ubs_${i}">Best Skill</label>
+        <span class="unequip-hint" title="Use Best Weapon Skill Skill - Causes the weapon to use your highest weapon skill for damage calculations. Most useful with the Angelic Faith transformation, which gives a bonus to Mace Fighting skill.">[?]</span>
+      </div>` : ''}
+      ${isWeaponSlot(i) ? `<div class="deed-item">
+        <input type="checkbox" id="wtc_${i}" ${s.weaponTypeChange?'checked':''}
+          onchange="updateCheckDeed(${i},'weaponTypeChange',this.checked)">
+        <label for="wtc_${i}">Change Type</label>
+        <span class="unequip-hint" title="Weapon Type Change Deed - Changes the weapon type (e.g. sword to mace), which changes the weapon's special abilities. 200 ED.">[?]</span>
       </div>` : ''}
       <div class="deed-item">
         <input type="checkbox" id="rmw_${i}" ${s.removeMageWeapon?'checked':''}
           onchange="updateCheckDeed(${i},'removeMageWeapon',this.checked)">
-        <label for="rmw_${i}">Fix Mage Malus</label>
+        <label for="rmw_${i}">Mage Malus</label>
         <span class="unequip-hint" title=""Remove Mage Weapon Malus deed is only needed if the weapon has the 'Mage Weapon' attribute, which lowers your Magery skill when equipped.">[?]</span>
       </div>
       ${!isWeaponSlot(i) ? `<div class="deed-item">
@@ -1583,6 +1586,7 @@ function changeWeapon(slotIdx, value) {
   s.useBestSkill = false;
   s.removeMageWeapon = false;
   s.useWeaponChangeDeed = false;
+  s.weaponTypeChange = false;
   s.itemAppearanceChange = false;
   s.renameDeed = false;
   s.renameText = '';
@@ -1856,10 +1860,13 @@ function getShoppingItems() {
     if (s.mageArmor) {
       items.push({ key: `${si}-magearmor`, slot: slotName, weapon: weaponLabel, label: 'Mage Armor Deed', ed: 50 });
     }
-    // Weapon Change Deed (if user opted to remove arti tag or upgrade crafted)
-    if (s.useWeaponChangeDeed && (info.rawArtiTagged || info.rawType === 'crafted')) {
-      const reason = info.rawArtiTagged ? 'remove Arti Tag' : 'upgrade Crafted to Normal';
-      items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: `Weapon Change Deed (${reason})`, ed: 200 });
+    // Weapon Change Deed (if user opted to remove arti tag)
+    if (s.useWeaponChangeDeed && info.rawArtiTagged) {
+      items.push({ key: `${si}-weaponchange`, slot: slotName, weapon: weaponLabel, label: 'Weapon Change Deed (remove Arti Tag)', ed: 200 });
+    }
+    // Weapon Type Change Deed (weapon slot only)
+    if (s.weaponTypeChange) {
+      items.push({ key: `${si}-weapontypechange`, slot: slotName, weapon: weaponLabel, label: 'Weapon Type Change Deed', ed: 200 });
     }
     // Item Appearance Change
     if (s.itemAppearanceChange) {
@@ -2076,7 +2083,7 @@ function compactState() {
   cs.slots = cs.slots.map(s => {
     s.allocations = stripDefaults(s.allocations, 0);
     if (s.customStats) s.customStats = stripDefaults(s.customStats, 0);
-    for (const k of ['spellChanneling','selfRepair','useBestSkill','removeMageWeapon','mageArmor','useWeaponChangeDeed','itemAppearanceChange','renameDeed','unequipped','customArtiTagged']) {
+    for (const k of ['spellChanneling','selfRepair','useBestSkill','removeMageWeapon','mageArmor','useWeaponChangeDeed','weaponTypeChange','itemAppearanceChange','renameDeed','unequipped','customArtiTagged']) {
       if (s[k] === false) delete s[k];
     }
     if (s.levelingDeeds === 0) delete s.levelingDeeds;
