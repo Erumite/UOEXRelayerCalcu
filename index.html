@@ -599,8 +599,8 @@ const ATTRIBUTES = [
   {name:"Hit Poison Area",      cat:"Weapon Hits", sp:4, max:60, cap:null},
   {name:"Hit Energy Area",      cat:"Weapon Hits", sp:4, max:60, cap:null},
   // Melee
-  {name:"Defense Chance Increase", cat:"Melee", sp:3, max:50, cap:65},
-  {name:"Hit Chance Increase",     cat:"Melee", sp:3, max:45, cap:45},
+  {name:"Defense Chance Increase", cat:"Melee", sp:3, max:50, cap:80},
+  {name:"Hit Chance Increase",     cat:"Melee", sp:3, max:45, cap:70},
   {name:"Damage Increase",         cat:"Melee", sp:4, max:50, cap:100},
   {name:"Swing Speed Increase",    cat:"Melee", sp:4, max:40, cap:60},
   {name:"Reflect Physical Damage", cat:"Melee", sp:3, max:15, cap:null},
@@ -1048,8 +1048,10 @@ function renderSlot() {
   if (info.type && !info.isNotable) {
     html += `<div style="display:flex;align-items:center;margin:12px 0 4px">
       <h3 style="margin:0">Attribute Allocation</h3>
-      <button class="prep-btn" onclick="prepSlot(${i})"
-        title="Set recommended attributes to max: +8 STR/DEX/INT/HP/Stam/Mana, +15 Reflect Physical, +20 SDI, +25 Enhance Potions">Prep</button>
+      ${!isWeaponSlot(i) ? `<button class="prep-btn" onclick="prepSlot(${i})"
+        title="Set recommended attributes to max: +8 STR/DEX/INT/HP/Stam/Mana, +15 Reflect Physical, +20 SDI, +25 Enhance Potions">Prep</button>` : ''}
+      <button class="prep-btn" style="color:#CCC;background:#911;margin-left:4px" onclick="resetAllocations(${i})"
+        title="Reset all allocated points to zero">Reset</button>
     </div>`;
     html += renderAttrTable(i, s, info);
   }
@@ -1616,6 +1618,14 @@ function allocMax(slotIdx, attrName, maxAlloc, cost) {
   const canAfford = Math.floor(remaining / cost);
   const val = Math.min(maxAlloc, current + canAfford);
   updateAlloc(slotIdx, attrName, val, maxAlloc);
+}
+
+function resetAllocations(slotIdx) {
+  const s = state.slots[slotIdx];
+  ATTRIBUTES.forEach(a => s.allocations[a.name] = 0);
+  renderSlot();
+  renderSummary();
+  autoSave();
 }
 
 function prepSlot(slotIdx) {
