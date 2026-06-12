@@ -710,6 +710,15 @@ const NOTABLE_ITEMS = {
   },
 };
 
+const STAT_ROW_BG = {
+  "Hit Life Leech":"#1a2a4a","Hit Stamina Leech":"#1a2a4a","Hit Mana Leech":"#1a2a4a",
+  "Hit Lower Attack":"#1a3a4a","Hit Lower Defense":"#1a3a4a",
+  "Hit Magic Arrow":"#3a2a10","Hit Harm":"#3a2a10","Hit Fireball":"#3a2a10","Hit Lightning":"#3a2a10",
+  "Hit Dispel":"#2a2a2a",
+  "Hit Physical Area":"#3a2010","Hit Fire Area":"#3a2010","Hit Cold Area":"#3a2010","Hit Poison Area":"#3a2010","Hit Energy Area":"#3a2010",
+  "Spell Damage Increase":"#2a1a3a","Bonus Strength":"#2a1a3a",
+};
+
 // Attributes that can appear on base weapons but aren't SP-levelable (tracked for totals)
 const EXTRA_TRACKED = ["Luck"];
 
@@ -1090,7 +1099,8 @@ function renderCustomWeaponSection(i, s) {
   const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
   allStats.forEach(name => {
     const val = s.customStats[name] || 0;
-    html += `<div class="custom-stat-row">
+    const bg = STAT_ROW_BG[name] ? `background:${STAT_ROW_BG[name]}` : '';
+    html += `<div class="custom-stat-row" style="${bg}">
       <label>${name}</label>
       <input type="number" class="narrow" min="-100" max="200" value="${val}"
         onchange="state.slots[${i}].customStats['${name}']=parseInt(this.value)||0; renderSlot(); autoSave()">
@@ -1118,7 +1128,8 @@ function renderCustomClothingSection(i, s) {
   const allStats = [...ATTRIBUTES.filter(a => a.cat !== "Weapon Hits").map(a => a.name), "Luck"];
   allStats.forEach(name => {
     const val = s.customStats[name] || 0;
-    html += `<div class="custom-stat-row">
+    const bg = STAT_ROW_BG[name] ? `background:${STAT_ROW_BG[name]}` : '';
+    html += `<div class="custom-stat-row" style="${bg}">
       <label>${name}</label>
       <input type="number" class="narrow" min="-100" max="200" value="${val}"
         onchange="state.slots[${i}].customStats['${name}']=parseInt(this.value)||0; renderSlot(); renderSummary(); autoSave()">
@@ -1168,7 +1179,8 @@ function renderSavedItemActions(i, s, isWeapon) {
   const allStats = [...ATTRIBUTES.map(a => a.name), "Luck"];
   allStats.forEach(stat => {
     const val = item.stats[stat] || 0;
-    html += `<div class="custom-stat-row">
+    const bg = STAT_ROW_BG[stat] ? `background:${STAT_ROW_BG[stat]}` : '';
+    html += `<div class="custom-stat-row" style="${bg}">
       <label>${stat}</label>
       <input type="number" class="narrow" min="-100" max="200" value="${val}"
         onchange="editSavedItemStat('${name}',${isWeapon},'${stat}',this.value)">
