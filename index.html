@@ -870,6 +870,24 @@ function renderSlot() {
   let html = '';
 
   // Weapon Selection
+  let baseSPValue = 0;
+  let usefulSPValue = 0;
+  if (info.type && !info.isNotable) {
+    ATTRIBUTES.forEach(attr => {
+      const val = info.stats[attr.name] || 0;
+      if (val > 0) {
+        const cost = val * (info.artiTagged ? attr.sp * 2 : attr.sp);
+        baseSPValue += cost;
+        if (attr.cat === "Weapon Hits" && !isWeaponSlot(i)) return;
+        if (isWeaponSlot(i) && (attr.cat === "Melee" || attr.cat === "Resistances")) return;
+        if (isWeaponSlot(i) && attr.cat === "Magic" && attr.name !== "Spell Damage Increase") return;
+        if (isWeaponSlot(i) && attr.name === "Hit Dispel") return;
+        if (isWeaponSlot(i) && (attr.name === "Regen Hits" || attr.name === "Regen Stamina" || attr.name === "Regen Mana")) return;
+        usefulSPValue += cost;
+      }
+    });
+  }
+
   html += `<div class="weapon-config">
     <div class="config-group">
       <label>Weapon / Item for ${SLOTS[i]}</label>
@@ -914,6 +932,7 @@ function renderSlot() {
           ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
           : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}
         </label>
+        <label>Base Point Value: <strong style="color:var(--gold)">${baseSPValue} SP</strong> <span style="color:var(--text-dim)">(Useful: <strong style="color:var(--gold)">${usefulSPValue} SP</strong>)</span></label>
         ${info.rawArtiTagged ? `<div class="deed-item" style="margin-top:4px">
           <input type="checkbox" id="wcd_${i}" ${s.useWeaponChangeDeed?'checked':''}
             onchange="state.slots[${i}].useWeaponChangeDeed=this.checked; renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
