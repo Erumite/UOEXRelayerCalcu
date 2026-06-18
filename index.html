@@ -1635,6 +1635,17 @@ function updateAlloc(slotIdx, attrName, value, maxAlloc) {
   let val = parseInt(value) || 0;
   if (val < 0) val = 0;
   if (val > maxAlloc) val = maxAlloc;
+  const totalSP = getTotalSP(slotIdx);
+  if (totalSP > 0) {
+    const current = state.slots[slotIdx].allocations[attrName] || 0;
+    const info = getWeaponInfo(slotIdx);
+    const attr = ATTRIBUTES.find(a => a.name === attrName);
+    const cost = info.artiTagged ? attr.sp * 2 : attr.sp;
+    const spentSP = getSpentSP(slotIdx);
+    const spentWithout = spentSP - (current * cost);
+    const maxByBudget = Math.floor((totalSP - spentWithout) / cost);
+    if (val > maxByBudget) val = maxByBudget;
+  }
   state.slots[slotIdx].allocations[attrName] = val;
   renderSlot();
   renderSummary();
