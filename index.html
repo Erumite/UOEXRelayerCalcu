@@ -1115,6 +1115,7 @@ function renderCustomWeaponSection(i, s) {
         <label for="customArti_${i}">Arti-Tagged (2x SP cost)</label>
       </div>
       <button class="btn btn-primary" onclick="saveCustomWeapon(${i})" style="align-self:flex-end">Save as Preset</button>
+      <button class="btn btn-danger" onclick="resetCustomEntry(${i})" style="align-self:flex-end">Reset</button>
     </div>
     <h3>Base Stats (from the weapon before leveling)</h3>
     <div class="custom-stats-grid">`;
@@ -1145,6 +1146,7 @@ function renderCustomClothingSection(i, s) {
           onchange="state.slots[${i}].customName=this.value; autoSave()">
       </div>
       <button class="btn btn-primary" onclick="saveCustomClothing(${i})" style="align-self:flex-end">Save as Notable Item</button>
+      <button class="btn btn-danger" onclick="resetCustomEntry(${i})" style="align-self:flex-end">Reset</button>
     </div>
     <h3>Fixed Stats</h3>
     <div class="custom-stats-grid">`;
@@ -1711,6 +1713,15 @@ function updateDeed(slotIdx, field, value) {
 function updateCheckDeed(slotIdx, field, checked) {
   state.slots[slotIdx][field] = checked;
   if (state.shoppingOpen) renderShoppingList();
+  autoSave();
+}
+
+function resetCustomEntry(slotIdx) {
+  const s = state.slots[slotIdx];
+  s.customName = '';
+  s.customStats = {};
+  renderSlot();
+  renderSummary();
   autoSave();
 }
 
