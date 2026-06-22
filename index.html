@@ -1090,6 +1090,16 @@ function renderSlot() {
     html += renderAttrTable(i, s, info);
   }
 
+  // Slot export/import
+  html += `<div style="display:flex;gap:8px;margin-top:12px;align-items:stretch">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button class="btn btn-secondary" style="padding:4px 12px;flex:1" onclick="exportSlot(${i})"${s.weaponChoice === 'none' ? ' disabled style="padding:4px 12px;flex:1;opacity:0.4"' : ''}>Export Slot</button>
+      <button class="btn btn-secondary" style="padding:4px 12px;flex:1" onclick="importSlot(${i})">Import Slot</button>
+    </div>
+    <textarea id="slotClipboard" style="flex:1;min-width:200px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px 8px;font-size:0.8em;font-family:monospace;resize:vertical"
+      placeholder="Export populates this field. Paste JSON here to import."></textarea>
+  </div>`;
+
   document.getElementById('slotContent').innerHTML = html;
 }
 
@@ -2272,6 +2282,108 @@ function resetAll() {
   renderAll();
   autoSave();
   showToast('All slots reset');
+}
+
+// ===== SLOT EXPORT / IMPORT =====
+function exportSlot(slotIdx) {
+  const s = state.slots[slotIdx];
+  const info = getWeaponInfo(slotIdx);
+  if (s.weaponChoice === 'none') { showToast('No item to export'); return; }
+
+  const data = { version: 1, slot: SLOTS[slotIdx] };
+
+  if (s.weaponChoice === 'custom' || s.weaponChoice === 'customClothing') {
+    data.name = s.customName || 'Custom Item';
+  } else {
+    data.name = s.weaponChoice;
+  }
+
+  if (info.isNotable) {
+    data.itemType = 'clothing';
+    data.stats = {};
+    Object.entries(info.stats).forEach(([k, v]) => { if (v !== 0) data.stats[k] = v; });
+  } else {
+    data.itemType = 'weapon';
+    data.weaponType = info.rawType;
+    data.artiTagged = info.rawArtiTagged;
+    data.stats = {};
+    Object.entries(info.stats).forEach(([k, v]) => { if (v !== 0) data.stats[k] = v; });
+    data.allocations = {};
+    ATTRIBUTES.forEach(attr => {
+      if (s.allocations[attr.name] > 0) data.allocations[attr.name] = s.allocations[attr.name];
+    });
+  }
+
+  if (s.levelingDeeds > 0) data.levelingDeeds = s.levelingDeeds;
+  if (s.luckDeeds > 0) data.luckDeeds = s.luckDeeds;
+  if (s.spellChanneling) data.spellChanneling = true;
+  if (s.selfRepair) data.selfRepair = true;
+  if (s.useBestSkill) data.useBestSkill = true;
+  if (s.removeMageWeapon) data.removeMageWeapon = true;
+  if (s.mageArmor) data.mageArmor = true;
+  if (s.useWeaponChangeDeed) data.useWeaponChangeDeed = true;
+  if (s.weaponTypeChange) data.weaponTypeChange = true;
+  if (s.itemAppearanceChange) data.itemAppearanceChange = true;
+  if (s.renameDeed) data.renameDeed = true;
+  if (s.renameText) data.renameText = s.renameText;
+
+  const el = document.getElementById('slotClipboard');
+  el.value = JSON.stringify(data);
+  el.select();
+  showToast(`Exported ${SLOTS[slotIdx]} slot — copy the text to share`);
+}
+
+function importSlot(slotIdx) {
+  const el = document.getElementById('slotClipboard');
+  const text = (el.value || '').trim();
+  if (!text) { showToast('Paste slot JSON into the text box first'); return; }
+  try {
+    const data = JSON.parse(text);
+    if (!data.version || !data.stats) { showToast('Invalid slot data'); return; }
+
+    const s = createEmptySlot();
+
+    if (data.itemType === 'clothing' && !isWeaponSlot(slotIdx)) {
+      s.weaponChoice = 'customClothing';
+      s.customName = data.name || '';
+      s.customStats = { ...data.stats };
+    } else {
+      s.weaponChoice = 'custom';
+      s.customName = data.name || '';
+      s.customType = data.weaponType || 'artifact';
+      s.customArtiTagged = data.artiTagged || false;
+      s.customStats = { ...data.stats };
+      if (data.allocations) {
+        Object.entries(data.allocations).forEach(([attr, val]) => {
+          if (attr in s.allocations) s.allocations[attr] = val;
+        });
+      }
+    }
+
+    s.levelingDeeds = data.levelingDeeds || 0;
+    s.luckDeeds = data.luckDeeds || 0;
+    s.spellChanneling = data.spellChanneling || false;
+    s.selfRepair = data.selfRepair || false;
+    s.useBestSkill = data.useBestSkill || false;
+    s.removeMageWeapon = data.removeMageWeapon || false;
+    s.mageArmor = data.mageArmor || false;
+    s.useWeaponChangeDeed = data.useWeaponChangeDeed || false;
+    s.weaponTypeChange = data.weaponTypeChange || false;
+    s.itemAppearanceChange = data.itemAppearanceChange || false;
+    s.renameDeed = data.renameDeed || false;
+    s.renameText = data.renameText || '';
+
+    state.slots[slotIdx] = s;
+    state.editingSavedItem = false;
+    renderTabs();
+    renderSlot();
+    renderSummary();
+    if (state.shoppingOpen) renderShoppingList();
+    autoSave();
+    showToast(`Imported "${data.name}" to ${SLOTS[slotIdx]}`);
+  } catch(err) {
+    showToast('Failed to import: ' + err.message);
+  }
 }
 
 // ===== UTILS =====
