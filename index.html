@@ -452,6 +452,14 @@ input[type="number"].narrow { width: 55px; }
   font-weight: bold; margin-left: 8px;
 }
 .prep-btn:hover { background: #3a5a3a; }
+
+/* Item tags */
+.tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;
+}
+.tag-blue { background: rgba(80,128,208,0.2); color: #5080d0; border: 1px solid #5080d0; }
+.tag-gold { background: rgba(212,175,55,0.2); color: var(--gold); border: 1px solid var(--gold-dim); }
+.tag-red { background: rgba(220,53,69,0.2); color: var(--red); border: 1px solid var(--red); }
 </style>
 </head>
 <body>
@@ -533,6 +541,13 @@ input[type="number"].narrow { width: 55px; }
     <ul>
       <li>Auto-saves to browser storage. Use <strong>Export/Import JSON</strong> to back up or share builds.</li>
     </ul>
+  </div>
+</div>
+
+<div class="help-overlay" id="itemViewOverlay" onclick="if(event.target===this)closeItemViewModal()">
+  <div class="help-modal" style="max-width:640px">
+    <button class="close-help" onclick="closeItemViewModal()">&times;</button>
+    <div id="itemViewModalContent"></div>
   </div>
 </div>
 
@@ -638,42 +653,42 @@ const CAT_CLASSES = {
 
 const PRESET_WEAPONS = {
   "Titan's Hammer": {
-    type:"artifact", artiTagged:true, slotType:"armor",
+    type:"looted", artiTagged:true, slotType:"armor",
     stats:{"Bonus Strength":15,"Hit Chance Increase":15,"Damage Increase":50},
     note:"Most Strength. Arti-tagged (double SP cost, use Weapon Change Deed to remove)."
   },
   "Bone Crusher": {
-    type:"artifact", artiTagged:true, slotType:"armor",
+    type:"looted", artiTagged:true, slotType:"armor",
     stats:{"Bonus Strength":10,"Damage Increase":75},
     note:"More strength than possible from leveling alone. Arti-tagged."
   },
   "Wind's Edge": {
-    type:"artifact", artiTagged:false, slotType:"armor",
+    type:"looted", artiTagged:false, slotType:"armor",
     stats:{"Defense Chance Increase":10,"Swing Speed Increase":50,"Damage Increase":50},
     note:"Strong base DCI/SSI/DI. Not arti-tagged."
   },
   "Swords of Prosperity": {
-    type:"artifact", artiTagged:false, slotType:"armor",
+    type:"looted", artiTagged:false, slotType:"armor",
     stats:{"Luck":200,"Faster Casting":1},
     note:"Saves on Luck Deeds + expensive Faster Casting."
   },
   "Ancient Yumi": {
-    type:"artifact", artiTagged:false, slotType:"weapon",
+    type:"looted", artiTagged:false, slotType:"weapon",
     stats:{"Damage Increase":50,"Hit Life Leech":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58},
     note:"Strong base DI + leeches and Hit Lightning. Not arti-tagged."
   },
   "Ancient Composite Bow": {
-    type:"artifact", artiTagged:false, slotType:"weapon",
+    type:"looted", artiTagged:false, slotType:"weapon",
     stats:{"Hit Fireball":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58},
     note:"Highest base-SP auction weapon."
   },
   "Blaze of Death": {
-    type:"artifact", artiTagged:false, slotType:"both",
+    type:"looted", artiTagged:false, slotType:"both",
     stats:{"Damage Increase":35,"Hit Fire Area":50,"Hit Fireball":50,"Swing Speed Increase":25,"Resist Fire":10},
     note:"Strong base DI/SSI + Hit Fire Area + Hit Fireball. Not arti-tagged."
   },
   "Cavorting Club": {
-    type:"artifact", artiTagged:false, slotType:"armor",
+    type:"looted", artiTagged:false, slotType:"armor",
     stats:{"Swing Speed Increase":35,"Damage Increase":35,"Resist Fire":8,"Resist Cold":8,"Resist Poison":8,"Resist Energy":8},
     note:"Strong base SSI/DI + resists. Not arti-tagged."
   },
@@ -747,7 +762,7 @@ function createEmptySlot() {
   return {
     weaponChoice: "none", // "none", preset name, notable name, "custom", or saved weapon name
     customName: "",
-    customType: "artifact", // "crafted" or "artifact"
+    customType: "looted", // "crafted" or "looted"
     customArtiTagged: false,
     customStats: {},
     levelingDeeds: 0,
@@ -784,16 +799,19 @@ function getWeaponInfo(slot) {
     result = { type: "notable", stats: {...NOTABLE_ITEMS[choice].stats}, artiTagged: false, rawArtiTagged: false, isNotable: true, spPerLevel: 0 };
   } else if (PRESET_WEAPONS[choice]) {
     const pw = PRESET_WEAPONS[choice];
-    result = { type: pw.type, stats: {...pw.stats}, artiTagged: pw.artiTagged, rawArtiTagged: pw.artiTagged, isNotable: false,
-               spPerLevel: pw.type === "crafted" ? 3 : 5 };
+    const type = pw.type === 'artifact' ? 'looted' : pw.type;
+    result = { type: type, stats: {...pw.stats}, artiTagged: pw.artiTagged, rawArtiTagged: pw.artiTagged, isNotable: false,
+               spPerLevel: type === "crafted" ? 3 : 5 };
   } else {
     const saved = state.savedWeapons.find(w => w.name === choice);
     if (saved) {
-      result = { type: saved.type, stats: {...saved.stats}, artiTagged: saved.artiTagged, rawArtiTagged: saved.artiTagged, isNotable: false,
-                 spPerLevel: saved.type === "crafted" ? 3 : 5 };
+      const type = (saved.type === 'artifact' || !saved.type) ? 'looted' : saved.type;
+      result = { type: type, stats: {...saved.stats}, artiTagged: saved.artiTagged, rawArtiTagged: saved.artiTagged, isNotable: false,
+                 spPerLevel: type === "crafted" ? 3 : 5 };
     } else if (choice === "custom") {
-      const spPerLevel = s.customType === "crafted" ? 3 : 5;
-      result = { type: s.customType, stats: {...s.customStats}, artiTagged: s.customArtiTagged, rawArtiTagged: s.customArtiTagged, isNotable: false, spPerLevel };
+      const type = (s.customType === 'crafted') ? 'crafted' : 'looted';
+      const spPerLevel = type === "crafted" ? 3 : 5;
+      result = { type: type, stats: {...s.customStats}, artiTagged: s.customArtiTagged, rawArtiTagged: s.customArtiTagged, isNotable: false, spPerLevel };
     } else {
       result = { type: null, stats: {}, artiTagged: false, rawArtiTagged: false, isNotable: false, spPerLevel: 0 };
     }
@@ -932,7 +950,7 @@ function renderSlot() {
     </div>
     <div class="config-group">
       ${info.type && !info.isNotable ? `
-        <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Normal (5 SP/lvl)'}</strong>
+        <label>Weapon Type: <strong style="color:var(--gold)">${info.type === 'crafted' ? 'Crafted (3 SP/lvl)' : 'Looted (5 SP/lvl)'}</strong>
         ${info.rawArtiTagged ? (info.artiTagged
           ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
           : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}
@@ -1092,12 +1110,15 @@ function renderSlot() {
 
   // Slot export/import
   html += `<div style="display:flex;gap:8px;margin-top:12px;align-items:stretch">
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <button class="btn btn-secondary" style="padding:4px 12px;flex:1" onclick="exportSlot(${i})"${s.weaponChoice === 'none' ? ' disabled style="padding:4px 12px;flex:1;opacity:0.4"' : ''}>Export Slot</button>
+    <div style="display:flex;flex-direction:column;gap:4px;width:150px">
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-secondary" style="padding:4px 8px;flex:1" onclick="exportSlot(${i})"${s.weaponChoice === 'none' ? ' disabled style="opacity:0.4;padding:4px 8px;flex:1"' : ''}>Export</button>
+        <button class="btn btn-secondary" style="padding:4px 8px;flex:1" onclick="exportSlotUrl(${i})"${s.weaponChoice === 'none' ? ' disabled style="opacity:0.4;padding:4px 8px;flex:1"' : ''}>URL</button>
+      </div>
       <button class="btn btn-secondary" style="padding:4px 12px;flex:1" onclick="importSlot(${i})">Import Slot</button>
     </div>
     <textarea id="slotClipboard" style="flex:1;min-width:200px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:6px 8px;font-size:0.8em;font-family:monospace;resize:vertical"
-      placeholder="Export populates this field. Paste JSON here to import."></textarea>
+      placeholder="Export or URL populates this field. Paste JSON or URL here to import."></textarea>
   </div>`;
 
   document.getElementById('slotContent').innerHTML = html;
@@ -1115,7 +1136,7 @@ function renderCustomWeaponSection(i, s) {
       <div class="config-group">
         <label>Type</label>
         <select onchange="state.slots[${i}].customType=this.value; renderSlot(); autoSave()">
-          <option value="artifact" ${s.customType==='artifact'?'selected':''}>Normal (5 SP/lvl)</option>
+          <option value="looted" ${s.customType==='looted'||s.customType==='artifact'?'selected':''}>Looted (5 SP/lvl)</option>
           <option value="crafted" ${s.customType==='crafted'?'selected':''}>Crafted (3 SP/lvl)</option>
         </select>
       </div>
@@ -1199,7 +1220,7 @@ function renderSavedItemActions(i, s, isWeapon) {
       <div class="config-group">
         <label>Type</label>
         <select onchange="editSavedWeaponField('${name}','type',this.value)">
-          <option value="artifact" ${item.type==='artifact'?'selected':''}>Normal (5 SP/lvl)</option>
+          <option value="looted" ${item.type==='looted'||item.type==='artifact'?'selected':''}>Looted (5 SP/lvl)</option>
           <option value="crafted" ${item.type==='crafted'?'selected':''}>Crafted (3 SP/lvl)</option>
         </select>
       </div>
@@ -2168,7 +2189,7 @@ function compactState() {
     if (s.levelingDeeds === 0) delete s.levelingDeeds;
     if (s.luckDeeds === 0) delete s.luckDeeds;
     if (s.customName === '') delete s.customName;
-    if (s.customType === 'artifact') delete s.customType;
+    if (s.customType === 'looted' || s.customType === 'artifact') delete s.customType;
     if (s.renameText === '') delete s.renameText;
     return s;
   });
@@ -2198,6 +2219,7 @@ function loadFromStorage() {
       state.activeSlot = loaded.activeSlot || 0;
       state.summaryOpen = loaded.summaryOpen || false;
       state.savedWeapons = loaded.savedWeapons || [];
+      state.savedWeapons.forEach(w => { if (w.type === 'artifact') w.type = 'looted'; });
       state.savedClothing = loaded.savedClothing || [];
       state.baseStats = loaded.baseStats || { str: 0, dex: 0, int: 0 };
       state.buffs = { protection: false, vampiricEmbrace: false, bless: false, angelicFaith: false, strengthPotion: false, greaterStrPotion: false, strengthSpell: false, ...(loaded.buffs || {}) };
@@ -2208,6 +2230,7 @@ function loadFromStorage() {
           if (i < SLOTS.length) {
             const merged = createEmptySlot();
             Object.assign(merged, ls);
+            if (merged.customType === 'artifact') merged.customType = 'looted';
             // Ensure all attributes exist in allocations
             ATTRIBUTES.forEach(a => {
               if (!(a.name in merged.allocations)) merged.allocations[a.name] = 0;
@@ -2284,11 +2307,16 @@ function resetAll() {
   showToast('All slots reset');
 }
 
-// ===== SLOT EXPORT / IMPORT =====
-function exportSlot(slotIdx) {
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// ===== SLOT EXPORT / IMPORT & URL SHARING =====
+function getSlotExportData(slotIdx) {
   const s = state.slots[slotIdx];
   const info = getWeaponInfo(slotIdx);
-  if (s.weaponChoice === 'none') { showToast('No item to export'); return; }
+  if (s.weaponChoice === 'none') { showToast('No item to export'); return null; }
 
   const data = { version: 1, slot: SLOTS[slotIdx] };
 
@@ -2304,7 +2332,7 @@ function exportSlot(slotIdx) {
     Object.entries(info.stats).forEach(([k, v]) => { if (v !== 0) data.stats[k] = v; });
   } else {
     data.itemType = 'weapon';
-    data.weaponType = info.rawType;
+    data.weaponType = (info.rawType === 'artifact' || !info.rawType) ? 'looted' : info.rawType;
     data.artiTagged = info.rawArtiTagged;
     data.stats = {};
     Object.entries(info.stats).forEach(([k, v]) => { if (v !== 0) data.stats[k] = v; });
@@ -2327,62 +2355,462 @@ function exportSlot(slotIdx) {
   if (s.renameDeed) data.renameDeed = true;
   if (s.renameText) data.renameText = s.renameText;
 
+  return data;
+}
+
+function exportSlot(slotIdx) {
+  const data = getSlotExportData(slotIdx);
+  if (!data) return;
+
   const el = document.getElementById('slotClipboard');
-  el.value = JSON.stringify(data);
-  el.select();
+  if (el) {
+    el.value = JSON.stringify(data);
+    el.select();
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(JSON.stringify(data)).catch(() => {});
+  }
   showToast(`Exported ${SLOTS[slotIdx]} slot — copy the text to share`);
 }
 
-function importSlot(slotIdx) {
+function toCompactData(data) {
+  const c = { v: data.version || 1 };
+  if (data.name) c.n = data.name;
+  if (data.itemType) c.t = data.itemType === 'weapon' ? 'w' : 'c';
+  if (data.weaponType) c.wt = (data.weaponType === 'artifact' || data.weaponType === 'looted') ? 'looted' : data.weaponType;
+  if (data.artiTagged) c.at = 1;
+  if (data.stats && Object.keys(data.stats).length > 0) c.st = data.stats;
+  if (data.allocations && Object.keys(data.allocations).length > 0) c.al = data.allocations;
+  if (data.levelingDeeds) c.ld = data.levelingDeeds;
+  if (data.luckDeeds) c.lu = data.luckDeeds;
+  if (data.spellChanneling) c.sc = 1;
+  if (data.selfRepair) c.sr = 1;
+  if (data.useBestSkill) c.ub = 1;
+  if (data.removeMageWeapon) c.rm = 1;
+  if (data.mageArmor) c.ma = 1;
+  if (data.useWeaponChangeDeed) c.wc = 1;
+  if (data.weaponTypeChange) c.tc = 1;
+  if (data.itemAppearanceChange) c.ic = 1;
+  if (data.renameDeed) c.rd = 1;
+  if (data.renameText) c.rt = data.renameText;
+  return c;
+}
+
+function fromCompactData(c) {
+  if (c.version || c.itemType || c.stats) {
+    if (c.weaponType === 'artifact') c.weaponType = 'looted';
+    return c;
+  }
+  const data = { version: c.v || 1 };
+  if (c.n) data.name = c.n;
+  if (c.t) data.itemType = c.t === 'w' ? 'weapon' : 'clothing';
+  if (c.wt) data.weaponType = c.wt === 'artifact' ? 'looted' : c.wt;
+  if (c.at) data.artiTagged = true;
+  if (c.st) data.stats = c.st;
+  if (c.al) data.allocations = c.al;
+  if (c.ld) data.levelingDeeds = c.ld;
+  if (c.lu) data.luckDeeds = c.lu;
+  if (c.sc) data.spellChanneling = true;
+  if (c.sr) data.selfRepair = true;
+  if (c.ub) data.useBestSkill = true;
+  if (c.rm) data.removeMageWeapon = true;
+  if (c.ma) data.mageArmor = true;
+  if (c.wc) data.useWeaponChangeDeed = true;
+  if (c.tc) data.weaponTypeChange = true;
+  if (c.ic) data.itemAppearanceChange = true;
+  if (c.rd) data.renameDeed = true;
+  if (c.rt) data.renameText = c.rt;
+  return data;
+}
+
+async function encodePayload(data) {
+  const compact = toCompactData(data);
+  const jsonStr = JSON.stringify(compact);
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const byteArray = new TextEncoder().encode(jsonStr);
+      const cs = new CompressionStream('deflate-raw');
+      const writer = cs.writable.getWriter();
+      writer.write(byteArray);
+      writer.close();
+      const buffer = await new Response(cs.readable).arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    } catch(e) {
+      // fallback
+    }
+  }
+  return btoa(jsonStr)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+async function decodePayload(payloadStr) {
+  let cleanStr = (payloadStr || '').trim();
+  if (cleanStr.includes('/item/')) {
+    cleanStr = cleanStr.split('/item/')[1];
+  } else if (cleanStr.includes('#item/')) {
+    cleanStr = cleanStr.split('#item/')[1];
+  } else if (cleanStr.includes('?item=')) {
+    cleanStr = cleanStr.split('?item=')[1].split('&')[0];
+  }
+  cleanStr = cleanStr.split('?')[0].split('#')[0];
+
+  let base64 = cleanStr.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) base64 += '=';
+
+  if (typeof DecompressionStream !== 'undefined') {
+    try {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const ds = new DecompressionStream('deflate-raw');
+      const writer = ds.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+      const buffer = await new Response(ds.readable).arrayBuffer();
+      const jsonStr = new TextDecoder().decode(buffer);
+      const obj = JSON.parse(jsonStr);
+      return fromCompactData(obj);
+    } catch(e) {
+      // fallback
+    }
+  }
+
+  try {
+    const jsonStr = atob(base64);
+    const obj = JSON.parse(jsonStr);
+    return fromCompactData(obj);
+  } catch(e) {
+    throw new Error('Invalid item payload');
+  }
+}
+
+async function exportSlotUrl(slotIdx) {
+  const data = getSlotExportData(slotIdx);
+  if (!data) return;
+
+  try {
+    const payload = await encodePayload(data);
+    const baseUrl = window.location.href.split('#')[0].split('?')[0];
+    const url = baseUrl + '#item/' + payload;
+
+    const el = document.getElementById('slotClipboard');
+    if (el) {
+      el.value = url;
+      el.select();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch(e) {}
+    }
+    showToast(`Copied ${SLOTS[slotIdx]} item URL to clipboard`);
+  } catch(err) {
+    showToast('Failed to generate URL: ' + err.message);
+  }
+}
+
+async function importSlot(slotIdx) {
   const el = document.getElementById('slotClipboard');
   const text = (el.value || '').trim();
-  if (!text) { showToast('Paste slot JSON into the text box first'); return; }
+  if (!text) { showToast('Paste slot JSON or URL into the text box first'); return; }
   try {
-    const data = JSON.parse(text);
-    if (!data.version || !data.stats) { showToast('Invalid slot data'); return; }
-
-    const s = createEmptySlot();
-
-    if (data.itemType === 'clothing' && !isWeaponSlot(slotIdx)) {
-      s.weaponChoice = 'customClothing';
-      s.customName = data.name || '';
-      s.customStats = { ...data.stats };
+    let data;
+    if (text.startsWith('{')) {
+      data = JSON.parse(text);
     } else {
-      s.weaponChoice = 'custom';
-      s.customName = data.name || '';
-      s.customType = data.weaponType || 'artifact';
-      s.customArtiTagged = data.artiTagged || false;
-      s.customStats = { ...data.stats };
-      if (data.allocations) {
-        Object.entries(data.allocations).forEach(([attr, val]) => {
-          if (attr in s.allocations) s.allocations[attr] = val;
-        });
-      }
+      data = await decodePayload(text);
     }
+    if (!data || (!data.version && !data.v)) { showToast('Invalid slot data'); return; }
 
-    s.levelingDeeds = data.levelingDeeds || 0;
-    s.luckDeeds = data.luckDeeds || 0;
-    s.spellChanneling = data.spellChanneling || false;
-    s.selfRepair = data.selfRepair || false;
-    s.useBestSkill = data.useBestSkill || false;
-    s.removeMageWeapon = data.removeMageWeapon || false;
-    s.mageArmor = data.mageArmor || false;
-    s.useWeaponChangeDeed = data.useWeaponChangeDeed || false;
-    s.weaponTypeChange = data.weaponTypeChange || false;
-    s.itemAppearanceChange = data.itemAppearanceChange || false;
-    s.renameDeed = data.renameDeed || false;
-    s.renameText = data.renameText || '';
-
-    state.slots[slotIdx] = s;
-    state.editingSavedItem = false;
-    renderTabs();
-    renderSlot();
-    renderSummary();
-    if (state.shoppingOpen) renderShoppingList();
-    autoSave();
-    showToast(`Imported "${data.name}" to ${SLOTS[slotIdx]}`);
+    applyImportDataToSlot(slotIdx, data);
   } catch(err) {
     showToast('Failed to import: ' + err.message);
+  }
+}
+
+function applyImportDataToSlot(slotIdx, data) {
+  const s = createEmptySlot();
+
+  if (data.itemType === 'clothing' && !isWeaponSlot(slotIdx)) {
+    s.weaponChoice = 'customClothing';
+    s.customName = data.name || '';
+    s.customStats = { ...(data.stats || {}) };
+  } else {
+    s.weaponChoice = 'custom';
+    s.customName = data.name || '';
+    s.customType = (data.weaponType === 'crafted') ? 'crafted' : 'looted';
+    s.customArtiTagged = data.artiTagged || false;
+    s.customStats = { ...(data.stats || {}) };
+    if (data.allocations) {
+      Object.entries(data.allocations).forEach(([attr, val]) => {
+        if (attr in s.allocations) s.allocations[attr] = val;
+      });
+    }
+  }
+
+  s.levelingDeeds = data.levelingDeeds || 0;
+  s.luckDeeds = data.luckDeeds || 0;
+  s.spellChanneling = data.spellChanneling || false;
+  s.selfRepair = data.selfRepair || false;
+  s.useBestSkill = data.useBestSkill || false;
+  s.removeMageWeapon = data.removeMageWeapon || false;
+  s.mageArmor = data.mageArmor || false;
+  s.useWeaponChangeDeed = data.useWeaponChangeDeed || false;
+  s.weaponTypeChange = data.weaponTypeChange || false;
+  s.itemAppearanceChange = data.itemAppearanceChange || false;
+  s.renameDeed = data.renameDeed || false;
+  s.renameText = data.renameText || '';
+
+  state.slots[slotIdx] = s;
+  state.activeSlot = slotIdx;
+  state.editingSavedItem = false;
+  renderAll();
+  autoSave();
+  showToast(`Imported "${data.name}" to ${SLOTS[slotIdx]}`);
+}
+
+function saveImportDataAsCustomItem(data) {
+  if (!data) return;
+  const isWeapon = data.itemType === 'weapon' || !data.itemType;
+  const name = data.name || (isWeapon ? 'Custom Weapon' : 'Custom Clothing');
+
+  if (isWeapon) {
+    const weapon = {
+      name: name,
+      type: (data.weaponType === 'crafted') ? 'crafted' : 'looted',
+      artiTagged: !!data.artiTagged,
+      stats: { ...(data.stats || {}) },
+      allocations: { ...(data.allocations || {}) },
+      levelingDeeds: data.levelingDeeds || 0,
+      luckDeeds: data.luckDeeds || 0,
+      spellChanneling: !!data.spellChanneling,
+      selfRepair: !!data.selfRepair,
+      useBestSkill: !!data.useBestSkill,
+      removeMageWeapon: !!data.removeMageWeapon,
+      mageArmor: !!data.mageArmor,
+      useWeaponChangeDeed: !!data.useWeaponChangeDeed,
+      weaponTypeChange: !!data.weaponTypeChange,
+      itemAppearanceChange: !!data.itemAppearanceChange,
+      renameDeed: !!data.renameDeed,
+      renameText: data.renameText || ''
+    };
+    const existing = state.savedWeapons.findIndex(w => w.name === name);
+    if (existing >= 0) {
+      state.savedWeapons[existing] = weapon;
+    } else {
+      state.savedWeapons.push(weapon);
+    }
+  } else {
+    const clothing = {
+      name: name,
+      stats: { ...(data.stats || {}) },
+      luckDeeds: data.luckDeeds || 0,
+      itemAppearanceChange: !!data.itemAppearanceChange,
+      renameDeed: !!data.renameDeed,
+      renameText: data.renameText || ''
+    };
+    const existing = state.savedClothing.findIndex(c => c.name === name);
+    if (existing >= 0) {
+      state.savedClothing[existing] = clothing;
+    } else {
+      state.savedClothing.push(clothing);
+    }
+  }
+
+  autoSave();
+  renderSlot();
+  renderProfiles();
+  showToast(`Saved "${name}" to custom items list`);
+}
+
+function openItemViewModal(itemData) {
+  state.viewItemData = itemData;
+  const isWeapon = itemData.itemType === 'weapon' || !itemData.itemType;
+
+  let html = `<h2>Item View: ${escapeHtml(itemData.name || 'Shared Item')}</h2>`;
+
+  html += `<div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">`;
+  html += `<span class="tag tag-blue">${isWeapon ? 'Weapon' : 'Clothing'}</span>`;
+  if (isWeapon && itemData.weaponType) {
+    const displayType = itemData.weaponType === 'crafted' ? 'Crafted' : 'Looted';
+    html += `<span class="tag tag-gold">${escapeHtml(displayType)}</span>`;
+  }
+  if (itemData.artiTagged) {
+    html += `<span class="tag tag-red">Arti-Tagged (2x SP)</span>`;
+  }
+  html += `</div>`;
+
+  const stats = itemData.stats || {};
+  const allocs = itemData.allocations || {};
+  const allAttrs = Array.from(new Set([...Object.keys(stats), ...Object.keys(allocs)]));
+
+  if (allAttrs.length > 0) {
+    html += `<h3>Attributes &amp; Stats</h3>`;
+    html += `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:0.9em">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);text-align:left">
+          <th style="padding:4px 8px">Attribute</th>
+          <th style="padding:4px 8px;text-align:right">Base</th>
+          <th style="padding:4px 8px;text-align:right">Allocated</th>
+          <th style="padding:4px 8px;text-align:right">Total</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    allAttrs.forEach(attrName => {
+      const base = stats[attrName] || 0;
+      const alloc = allocs[attrName] || 0;
+      const total = base + alloc;
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+        <td style="padding:4px 8px;color:var(--gold)">${escapeHtml(attrName)}</td>
+        <td style="padding:4px 8px;text-align:right;color:var(--text-dim)">${base > 0 ? '+' + base : '-'}</td>
+        <td style="padding:4px 8px;text-align:right;color:var(--green)">${alloc > 0 ? '+' + alloc : '-'}</td>
+        <td style="padding:4px 8px;text-align:right;font-weight:bold">+${total}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+  }
+
+  const deeds = [];
+  if (itemData.levelingDeeds) deeds.push(`Leveling Deeds: +${itemData.levelingDeeds}`);
+  if (itemData.luckDeeds) deeds.push(`Luck Deeds: +${itemData.luckDeeds} (+${itemData.luckDeeds * 100} Luck)`);
+  if (itemData.spellChanneling) deeds.push('Spell Channeling');
+  if (itemData.selfRepair) deeds.push('Self Repair');
+  if (itemData.useBestSkill) deeds.push('Use Best Weapon Skill');
+  if (itemData.removeMageWeapon) deeds.push('Remove Mage Weapon');
+  if (itemData.mageArmor) deeds.push('Mage Armor');
+  if (itemData.useWeaponChangeDeed) deeds.push('Weapon Change Deed (Remove Arti-Tag)');
+  if (itemData.weaponTypeChange) deeds.push('Weapon Type Change Deed');
+  if (itemData.itemAppearanceChange) deeds.push('Item Appearance Change Deed');
+  if (itemData.renameDeed) deeds.push(`Rename Deed: "${escapeHtml(itemData.renameText || '')}"`);
+
+  if (deeds.length > 0) {
+    html += `<h3>Deeds &amp; Modifiers Applied</h3>`;
+    html += `<ul style="font-size:0.9em;padding-left:20px;margin-bottom:14px">`;
+    deeds.forEach(d => {
+      html += `<li style="color:var(--text-dim)">${d}</li>`;
+    });
+    html += `</ul>`;
+  }
+
+  html += `<div style="margin-top:20px;padding-top:14px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="saveImportDataAsCustomItem(state.viewItemData);closeItemViewModal();" style="flex:1;padding:8px">
+        Save to Custom Items
+      </button>
+      <button class="btn btn-primary" onclick="toggleImportSlotSelector()" style="flex:1;padding:8px">
+        Import into Slot...
+      </button>
+    </div>
+
+    <div id="importSlotSelector" style="display:none;background:var(--bg3);padding:10px;border-radius:6px;border:1px solid var(--border);margin-top:6px">
+      <label style="font-size:0.85em;color:var(--text-dim);display:block;margin-bottom:6px">Select Equipment Slot to Import Into:</label>
+      <div style="display:flex;gap:8px">
+        <select id="itemImportSlotSelect" style="flex:1;padding:6px;background:var(--input-bg);color:var(--text);border:1px solid var(--border);border-radius:4px">
+          ${SLOTS.map((s, idx) => `<option value="${idx}">${idx + 1}. ${s}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" onclick="confirmImportToSlot()" style="padding:6px 14px">Import</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('itemViewModalContent').innerHTML = html;
+  document.getElementById('itemViewOverlay').classList.add('open');
+}
+
+function closeItemViewModal() {
+  const overlay = document.getElementById('itemViewOverlay');
+  if (overlay) overlay.classList.remove('open');
+  if (window.location.hash.includes('item/') || window.location.pathname.includes('/item/')) {
+    const cleanUrl = window.location.href.split('#')[0].split('?')[0].replace(/\/item\/.*/, '');
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+}
+
+function toggleImportSlotSelector() {
+  const el = document.getElementById('importSlotSelector');
+  if (el) {
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function confirmImportToSlot() {
+  const select = document.getElementById('itemImportSlotSelect');
+  if (!select) return;
+  const slotIdx = parseInt(select.value, 10);
+  if (isNaN(slotIdx) || slotIdx < 0 || slotIdx >= SLOTS.length) return;
+
+  if (state.viewItemData) {
+    applyImportDataToSlot(slotIdx, state.viewItemData);
+    closeItemViewModal();
+  }
+}
+
+async function checkUrlForSharedItem() {
+  let payloadStr = null;
+
+  const href = window.location.href;
+  const pathname = window.location.pathname;
+
+  if (pathname.includes('/item/')) {
+    payloadStr = pathname.split('/item/')[1];
+  }
+
+  if (!payloadStr && window.location.hash) {
+    const hash = window.location.hash;
+    if (hash.includes('item/')) {
+      payloadStr = hash.split('item/')[1];
+    } else if (hash.length > 5) {
+      payloadStr = hash.replace(/^#\/?/, '');
+    }
+  }
+
+  if (!payloadStr && href.includes('/item/')) {
+    payloadStr = href.split('/item/')[1];
+  }
+
+  if (!payloadStr && window.location.search) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('item')) {
+      payloadStr = params.get('item');
+    }
+  }
+
+  if (!payloadStr && sessionStorage.getItem('redirect_path')) {
+    const redir = sessionStorage.getItem('redirect_path');
+    sessionStorage.removeItem('redirect_path');
+    if (redir.includes('/item/')) {
+      payloadStr = redir.split('/item/')[1];
+    }
+  }
+
+  if (payloadStr) {
+    payloadStr = payloadStr.split('?')[0].split('#')[0].trim();
+    if (payloadStr) {
+      try {
+        const itemData = await decodePayload(payloadStr);
+        if (itemData && itemData.name) {
+          openItemViewModal(itemData);
+        } else {
+          showToast('Failed to load item details');
+        }
+      } catch(err) {
+        showToast('Failed to load item details: ' + err.message);
+      }
+    }
   }
 }
 
@@ -2413,6 +2841,7 @@ if (state.shoppingOpen) {
   document.getElementById('shoppingPanel').style.display = '';
   document.getElementById('shoppingToggle').textContent = 'Shopping List (click to collapse)';
 }
+checkUrlForSharedItem();
 </script>
 </body>
 </html>
