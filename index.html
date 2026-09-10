@@ -825,6 +825,39 @@ function getWeaponInfo(slot) {
   return result;
 }
 
+function getItemLootScore(stats, artiTagged = false) {
+  let totalSP = 0;
+  let weaponSP = 0;
+  let armorSP = 0;
+
+  if (!stats) return { totalSP: 0, weaponSP: 0, armorSP: 0 };
+
+  ATTRIBUTES.forEach(attr => {
+    const val = stats[attr.name] || 0;
+    if (val > 0) {
+      const spCost = val * (artiTagged ? attr.sp * 2 : attr.sp);
+      totalSP += spCost;
+
+      const usefulOnWeapon = !(
+        attr.cat === "Melee" ||
+        attr.cat === "Resistances" ||
+        (attr.cat === "Magic" && attr.name !== "Spell Damage Increase") ||
+        attr.name === "Hit Dispel" ||
+        attr.name === "Regen Hits" ||
+        attr.name === "Regen Stamina" ||
+        attr.name === "Regen Mana"
+      );
+
+      const usefulOnArmor = !(attr.cat === "Weapon Hits");
+
+      if (usefulOnWeapon) weaponSP += spCost;
+      if (usefulOnArmor) armorSP += spCost;
+    }
+  });
+
+  return { totalSP, weaponSP, armorSP };
+}
+
 function getMaxLuckDeeds(slot) {
   const info = getWeaponInfo(slot);
   const baseLuck = info.stats["Luck"] || 0;
@@ -896,19 +929,9 @@ function renderSlot() {
   let baseSPValue = 0;
   let usefulSPValue = 0;
   if (info.type && !info.isNotable) {
-    ATTRIBUTES.forEach(attr => {
-      const val = info.stats[attr.name] || 0;
-      if (val > 0) {
-        const cost = val * (info.artiTagged ? attr.sp * 2 : attr.sp);
-        baseSPValue += cost;
-        if (attr.cat === "Weapon Hits" && !isWeaponSlot(i)) return;
-        if (isWeaponSlot(i) && (attr.cat === "Melee" || attr.cat === "Resistances")) return;
-        if (isWeaponSlot(i) && attr.cat === "Magic" && attr.name !== "Spell Damage Increase") return;
-        if (isWeaponSlot(i) && attr.name === "Hit Dispel") return;
-        if (isWeaponSlot(i) && (attr.name === "Regen Hits" || attr.name === "Regen Stamina" || attr.name === "Regen Mana")) return;
-        usefulSPValue += cost;
-      }
-    });
+    const loot = getItemLootScore(info.stats, info.artiTagged);
+    baseSPValue = loot.totalSP;
+    usefulSPValue = isWeaponSlot(i) ? loot.weaponSP : loot.armorSP;
   }
 
   html += `<div class="weapon-config">
@@ -2655,6 +2678,44 @@ function openItemViewModal(itemData) {
   const stats = itemData.stats || {};
   const allocs = itemData.allocations || {};
   const allAttrs = Array.from(new Set([...Object.keys(stats), ...Object.keys(allocs)]));
+
+  // LootScore calculation
+  const baseLoot = getItemLootScore(stats, itemData.artiTagged);
+  const totalStats = { ...stats };
+  let hasAllocations = false;
+  Object.entries(allocs).forEach(([k, v]) => {
+    if (v > 0) {
+      totalStats[k] = (totalStats[k] || 0) + v;
+      hasAllocations = true;
+    }
+  });
+  const totalLoot = getItemLootScore(totalStats, itemData.artiTagged);
+
+  html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px">
+    <div style="font-size:0.8em;font-weight:bold;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Loot Score</div>
+    <div style="display:flex;justify-content:space-around;align-items:center;text-align:center;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;min-width:90px">
+        <div style="font-size:0.8em;color:var(--text-dim);margin-bottom:3px">⚔️ Weapon</div>
+        <div style="font-size:1.15em;font-weight:bold;color:var(--red)">
+          ${baseLoot.weaponSP} SP${hasAllocations ? `<div style="font-size:0.7em;color:var(--text-dim);font-weight:normal">(Total: ${totalLoot.weaponSP})</div>` : ''}
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--border);height:32px"></div>
+      <div style="flex:1;min-width:90px">
+        <div style="font-size:0.8em;color:var(--text-dim);margin-bottom:3px">🛡️ Armor</div>
+        <div style="font-size:1.15em;font-weight:bold;color:#5080d0">
+          ${baseLoot.armorSP} SP${hasAllocations ? `<div style="font-size:0.7em;color:var(--text-dim);font-weight:normal">(Total: ${totalLoot.armorSP})</div>` : ''}
+        </div>
+      </div>
+      <div style="border-left:1px solid var(--border);height:32px"></div>
+      <div style="flex:1;min-width:90px">
+        <div style="font-size:0.8em;color:var(--text-dim);margin-bottom:3px">💎 Total SP</div>
+        <div style="font-size:1.15em;font-weight:bold;color:var(--gold)">
+          ${baseLoot.totalSP} SP${hasAllocations ? `<div style="font-size:0.7em;color:var(--text-dim);font-weight:normal">(Total: ${totalLoot.totalSP})</div>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
 
   if (allAttrs.length > 0) {
     html += `<h3>Attributes &amp; Stats</h3>`;
