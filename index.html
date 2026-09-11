@@ -654,43 +654,35 @@ const CAT_CLASSES = {
 const PRESET_WEAPONS = {
   "Titan's Hammer": {
     type:"looted", artiTagged:true, slotType:"armor",
-    stats:{"Bonus Strength":15,"Hit Chance Increase":15,"Damage Increase":50},
-    note:"Most Strength. Arti-tagged (double SP cost, use Weapon Change Deed to remove)."
+    stats:{"Bonus Strength":15,"Hit Chance Increase":15,"Damage Increase":50}
   },
   "Bone Crusher": {
     type:"looted", artiTagged:true, slotType:"armor",
-    stats:{"Bonus Strength":10,"Damage Increase":75},
-    note:"More strength than possible from leveling alone. Arti-tagged."
+    stats:{"Bonus Strength":10,"Damage Increase":75}
   },
   "Wind's Edge": {
     type:"looted", artiTagged:false, slotType:"armor",
-    stats:{"Defense Chance Increase":10,"Swing Speed Increase":50,"Damage Increase":50},
-    note:"Strong base DCI/SSI/DI. Not arti-tagged."
+    stats:{"Defense Chance Increase":10,"Swing Speed Increase":50,"Damage Increase":50}
   },
   "Swords of Prosperity": {
     type:"looted", artiTagged:false, slotType:"armor",
-    stats:{"Luck":200,"Faster Casting":1},
-    note:"Saves on Luck Deeds + expensive Faster Casting."
+    stats:{"Luck":200,"Faster Casting":1}
   },
   "Ancient Yumi": {
     type:"looted", artiTagged:false, slotType:"weapon",
-    stats:{"Damage Increase":50,"Hit Life Leech":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58},
-    note:"Strong base DI + leeches and Hit Lightning. Not arti-tagged."
+    stats:{"Damage Increase":50,"Hit Life Leech":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58}
   },
   "Ancient Composite Bow": {
     type:"looted", artiTagged:false, slotType:"weapon",
-    stats:{"Hit Fireball":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58},
-    note:"Highest base-SP auction weapon."
+    stats:{"Hit Fireball":58,"Hit Lightning":58,"Hit Lower Defense":58,"Hit Mana Leech":58}
   },
   "Blaze of Death": {
     type:"looted", artiTagged:false, slotType:"both",
-    stats:{"Damage Increase":35,"Hit Fire Area":50,"Hit Fireball":50,"Swing Speed Increase":25,"Resist Fire":10},
-    note:"Strong base DI/SSI + Hit Fire Area + Hit Fireball. Not arti-tagged."
+    stats:{"Damage Increase":35,"Hit Fire Area":50,"Hit Fireball":50,"Swing Speed Increase":25,"Resist Fire":10}
   },
   "Cavorting Club": {
     type:"looted", artiTagged:false, slotType:"armor",
-    stats:{"Swing Speed Increase":35,"Damage Increase":35,"Resist Fire":8,"Resist Cold":8,"Resist Poison":8,"Resist Energy":8},
-    note:"Strong base SSI/DI + resists. Not arti-tagged."
+    stats:{"Swing Speed Increase":35,"Damage Increase":35,"Resist Fire":8,"Resist Cold":8,"Resist Poison":8,"Resist Energy":8}
   },
 };
 
@@ -698,35 +690,30 @@ const NOTABLE_ITEMS = {
   "Spirit of Totem": {
     nativeSlot:"Head", slotType:"armor",
     stats:{"Bonus Strength":20,"Reflect Physical Damage":15,"Hit Chance Increase":15,
-           "Resist Physical":20,"Resist Fire":3,"Resist Cold":8,"Resist Poison":4,"Resist Energy":4},
-    note:"Fixed stats, no leveling. Native slot: Head."
+           "Resist Physical":20,"Resist Fire":3,"Resist Cold":8,"Resist Poison":4,"Resist Energy":4}
   },
   "Hide of the Werewolf King": {
     nativeSlot:"Head", slotType:"armor",
     stats:{"Bonus Hits":20,"Regen Hits":5,"Bonus Stamina":15,"Bonus Strength":10,
-           "Resist Physical":22,"Resist Fire":-10,"Resist Cold":20},
-    note:"Fixed stats, no leveling. Night Sight included. Native slot: Head."
+           "Resist Physical":22,"Resist Fire":-10,"Resist Cold":20}
   },
   "Jewel of Winter": {
     nativeSlot:"Neck", slotType:"armor",
     stats:{"Bonus Hits":20,"Bonus Int":8,"Lower Mana Cost":20,"Luck":100,
            "Regen Mana":5,"Reflect Physical Damage":20,"Regen Stamina":7,
            "Spell Damage Increase":30,"Bonus Stamina":20,"Bonus Strength":5,
-           "Resist Cold":10,"Resist Energy":10},
-    note:"Fixed stats, no leveling. Native slot: Neck."
+           "Resist Cold":10,"Resist Energy":10}
   },
   "Black Belt": {
     nativeSlot:"Belt", slotType:"armor",
     stats:{"Defense Chance Increase":15,"Hit Chance Increase":15,"Bonus Hits":20,
-           "Luck":250,"Bonus Mana":20,"Reflect Physical Damage":10,"Bonus Stamina":20,"Bonus Strength":5},
-    note:"Fixed stats, no leveling. Native slot: Belt."
+           "Luck":250,"Bonus Mana":20,"Reflect Physical Damage":10,"Bonus Stamina":20,"Bonus Strength":5}
   },
   "Cloak of Mist": {
     nativeSlot:"Back", slotType:"armor",
     stats:{"Damage Increase":15,"Bonus Dex":8,"Bonus Int":8,"Lower Reagent Cost":15,
            "Regen Stamina":1,"Spell Damage Increase":20,"Bonus Strength":12,
-           "Resist Physical":10,"Resist Fire":10,"Resist Cold":10,"Resist Poison":10,"Resist Energy":10},
-    note:"Fixed stats, no leveling. Native slot: Back."
+           "Resist Physical":10,"Resist Fire":10,"Resist Cold":10,"Resist Poison":10,"Resist Energy":10}
   },
 };
 
@@ -825,33 +812,147 @@ function getWeaponInfo(slot) {
   return result;
 }
 
-function getItemLootScore(stats, artiTagged = false) {
+const RELEVANT_WEAPON_PROPS = new Set([
+  "Reflect Physical Damage",
+  "Spell Damage Increase",
+  "Bonus Strength",
+  "Bonus Hits",
+  "Hit Life Leech",
+  "Hit Stamina Leech",
+  "Hit Mana Leech",
+  "Hit Lower Attack",
+  "Hit Lower Defense",
+  "Hit Magic Arrow",
+  "Hit Harm",
+  "Hit Fireball",
+  "Hit Lightning",
+  "Hit Energy Area",
+  "Hit Fire Area",
+  "Hit Poison Area",
+  "Hit Cold Area",
+  "Hit Physical Area"
+]);
+
+const RELEVANT_ARMOR_PROPS = new Set([
+  "Defense Chance Increase",
+  "Hit Chance Increase",
+  "Swing Speed Increase",
+  "Reflect Physical Damage",
+  "Spell Damage Increase",
+  "Faster Cast Recovery",
+  "Faster Casting",
+  "Lower Mana Cost",
+  "Lower Reagent Cost",
+  "Enhance Potions",
+  "Regen Hits",
+  "Regen Stamina",
+  "Regen Mana",
+  "Bonus Strength",
+  "Bonus Dex",
+  "Bonus Int",
+  "Bonus Hits",
+  "Bonus Stamina",
+  "Bonus Mana",
+  "Resist Physical",
+  "Resist Fire",
+  "Resist Cold",
+  "Resist Poison",
+  "Resist Energy"
+]);
+
+function getItemLootScore(stats) {
   let totalSP = 0;
   let weaponSP = 0;
   let armorSP = 0;
 
   if (!stats) return { totalSP: 0, weaponSP: 0, armorSP: 0 };
 
-  ATTRIBUTES.forEach(attr => {
-    const val = stats[attr.name] || 0;
-    if (val > 0) {
-      const spCost = val * (artiTagged ? attr.sp * 2 : attr.sp);
+  const nameMap = {
+    "defence chance increase": "Defense Chance Increase",
+    "defense chance increase": "Defense Chance Increase",
+    "hit chance increase": "Hit Chance Increase",
+    "swing speed increase": "Swing Speed Increase",
+    "reflect physical damage": "Reflect Physical Damage",
+    "spell damage": "Spell Damage Increase",
+    "spell damage increase": "Spell Damage Increase",
+    "faster cast recovery": "Faster Cast Recovery",
+    "faster casting": "Faster Casting",
+    "lower mana cost": "Lower Mana Cost",
+    "lower reagent cost": "Lower Reagent Cost",
+    "enhance potions": "Enhance Potions",
+    "hit point regeneration": "Regen Hits",
+    "regen hits": "Regen Hits",
+    "stamina regeneration": "Regen Stamina",
+    "regen stamina": "Regen Stamina",
+    "mana regeneration": "Regen Mana",
+    "regen mana": "Regen Mana",
+    "strength bonus": "Bonus Strength",
+    "bonus strength": "Bonus Strength",
+    "dexterity bonus": "Bonus Dex",
+    "bonus dex": "Bonus Dex",
+    "bonus dexterity": "Bonus Dex",
+    "intelligence bonus": "Bonus Int",
+    "bonus int": "Bonus Int",
+    "bonus intelligence": "Bonus Int",
+    "hit point increase": "Bonus Hits",
+    "bonus hits": "Bonus Hits",
+    "stamina increase": "Bonus Stamina",
+    "bonus stamina": "Bonus Stamina",
+    "mana increase": "Bonus Mana",
+    "bonus mana": "Bonus Mana",
+    "physical resist": "Resist Physical",
+    "resist physical": "Resist Physical",
+    "fire resist": "Resist Fire",
+    "resist fire": "Resist Fire",
+    "cold resist": "Resist Cold",
+    "resist cold": "Resist Cold",
+    "poison resist": "Resist Poison",
+    "resist poison": "Resist Poison",
+    "energy resist": "Resist Energy",
+    "resist energy": "Resist Energy",
+    "hit life leech": "Hit Life Leech",
+    "hit stamina leech": "Hit Stamina Leech",
+    "hit mana leech": "Hit Mana Leech",
+    "hit lower attack": "Hit Lower Attack",
+    "hit lower defense": "Hit Lower Defense",
+    "hit magic arrow": "Hit Magic Arrow",
+    "hit harm": "Hit Harm",
+    "hit fireball": "Hit Fireball",
+    "hit lightning": "Hit Lightning",
+    "hit energy area": "Hit Energy Area",
+    "hit fire area": "Hit Fire Area",
+    "hit poison area": "Hit Poison Area",
+    "hit cold area": "Hit Cold Area",
+    "hit physical area": "Hit Physical Area",
+  };
+
+  const normalizedStats = {};
+  Object.entries(stats).forEach(([k, v]) => {
+    const canonical = nameMap[k.toLowerCase()] || k;
+    normalizedStats[canonical] = (normalizedStats[canonical] || 0) + v;
+  });
+
+  if (normalizedStats["Resistances"]) {
+    const resVal = normalizedStats["Resistances"];
+    if (resVal > 0) {
+      const spCost = resVal * 5;
       totalSP += spCost;
+      armorSP += spCost;
+    }
+  }
 
-      const usefulOnWeapon = !(
-        attr.cat === "Melee" ||
-        attr.cat === "Resistances" ||
-        (attr.cat === "Magic" && attr.name !== "Spell Damage Increase") ||
-        attr.name === "Hit Dispel" ||
-        attr.name === "Regen Hits" ||
-        attr.name === "Regen Stamina" ||
-        attr.name === "Regen Mana"
-      );
+  ATTRIBUTES.forEach(attr => {
+    const val = normalizedStats[attr.name] || 0;
+    if (val > 0) {
+      const isWeaponProp = RELEVANT_WEAPON_PROPS.has(attr.name);
+      const isArmorProp = RELEVANT_ARMOR_PROPS.has(attr.name);
 
-      const usefulOnArmor = !(attr.cat === "Weapon Hits");
-
-      if (usefulOnWeapon) weaponSP += spCost;
-      if (usefulOnArmor) armorSP += spCost;
+      if (isWeaponProp || isArmorProp) {
+        const spCost = val * attr.sp;
+        totalSP += spCost;
+        if (isWeaponProp) weaponSP += spCost;
+        if (isArmorProp) armorSP += spCost;
+      }
     }
   });
 
@@ -926,12 +1027,9 @@ function renderSlot() {
   let html = '';
 
   // Weapon Selection
-  let baseSPValue = 0;
-  let usefulSPValue = 0;
-  if (info.type && !info.isNotable) {
-    const loot = getItemLootScore(info.stats, info.artiTagged);
-    baseSPValue = loot.totalSP;
-    usefulSPValue = isWeaponSlot(i) ? loot.weaponSP : loot.armorSP;
+  let loot = null;
+  if (info.stats && Object.keys(info.stats).length > 0) {
+    loot = getItemLootScore(info.stats);
   }
 
   html += `<div class="weapon-config">
@@ -978,7 +1076,6 @@ function renderSlot() {
           ? ' <span style="color:var(--red)">[Arti-Tagged: 2x SP Cost]</span>'
           : ' <span style="color:var(--green)">[Arti-Tag Removed via Deed]</span>') : ''}
         </label>
-        <label>Base Point Value: <strong style="color:var(--gold)">${baseSPValue} SP</strong> <span style="color:var(--text-dim)">(Useful: <strong style="color:var(--gold)">${usefulSPValue} SP</strong>)</span></label>
         ${info.rawArtiTagged ? `<div class="deed-item" style="margin-top:4px">
           <input type="checkbox" id="wcd_${i}" ${s.useWeaponChangeDeed?'checked':''}
             onchange="state.slots[${i}].useWeaponChangeDeed=this.checked; renderSlot(); renderSummary(); if(state.shoppingOpen) renderShoppingList(); autoSave()">
@@ -987,8 +1084,7 @@ function renderSlot() {
       ` : ''}
       ${info.isNotable ? `<label style="color:var(--gold)">Fixed-stat item (no leveling)</label>` : ''}
       ${!info.type && !info.isNotable ? `<label style="color:var(--text-dim)">Select a weapon to begin</label>` : ''}
-      ${PRESET_WEAPONS[s.weaponChoice] ? `<div style="font-size:0.8em;color:var(--text-dim);margin-top:4px">${PRESET_WEAPONS[s.weaponChoice].note}</div>` : ''}
-      ${NOTABLE_ITEMS[s.weaponChoice] ? `<div style="font-size:0.8em;color:var(--text-dim);margin-top:4px">${NOTABLE_ITEMS[s.weaponChoice].note}</div>` : ''}
+      ${loot ? `<label style="margin-top:4px">LootScore: ⚔️ Weapon <strong style="color:var(--red)">${loot.weaponSP} SP</strong> &nbsp;|&nbsp; 🛡️ Armor <strong style="color:#5080d0">${loot.armorSP} SP</strong> &nbsp;|&nbsp; 💎 Total <strong style="color:var(--gold)">${loot.totalSP} SP</strong></label>` : ''}
     </div>
   </div>`;
 
@@ -2680,7 +2776,7 @@ function openItemViewModal(itemData) {
   const allAttrs = Array.from(new Set([...Object.keys(stats), ...Object.keys(allocs)]));
 
   // LootScore calculation
-  const baseLoot = getItemLootScore(stats, itemData.artiTagged);
+  const baseLoot = getItemLootScore(stats);
   const totalStats = { ...stats };
   let hasAllocations = false;
   Object.entries(allocs).forEach(([k, v]) => {
@@ -2689,7 +2785,7 @@ function openItemViewModal(itemData) {
       hasAllocations = true;
     }
   });
-  const totalLoot = getItemLootScore(totalStats, itemData.artiTagged);
+  const totalLoot = getItemLootScore(totalStats);
 
   html += `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:16px">
     <div style="font-size:0.8em;font-weight:bold;color:var(--gold);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Loot Score</div>
